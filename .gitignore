@@ -1,0 +1,18 @@
+# Foundry
+out/
+cache/
+broadcast/
+
+# Deps installed as git submodules under lib/ are tracked; build artifacts are not
+
+# Node / reference material (not part of the Portage contracts project)
+arc-multichain-wallet/
+node_modules/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
