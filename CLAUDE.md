@@ -48,6 +48,32 @@ Source-chain USDC (for consolidation origin): Base Sepolia `0x036CbD53842c542663
 
 ---
 
+## Deployed addresses (v0.1) — Arc Testnet (chainId 5042002)
+
+Deployed & wired 2026-07-20. Governor = `0xD3467E00F6d7275C74e60fc7A1E5eD526893B29F` (deployer EOA).
+Wiring verified on-chain: `Ledger.creditor==Router`, `Ledger.debitor==PayoutEngine`,
+`Router.forwarder==MintForwarder`, and all immutable cross-refs (Ledger.usdc, Router.ledger,
+PayoutEngine.ledger, Forwarder.router, Forwarder.gatewayMinter).
+
+| Contract | Address |
+|----------|---------|
+| AppRegistry | `0xb803bF100F5CEb71dcC6Db20f8586A7A0901BB67` |
+| Ledger | `0xEEc603760483B0689B76fb3780eE7edc2E1661b4` |
+| PayoutEngine | `0xA9Ebe9fC146F6Bdb2FF5A688017eb496C56F66e0` |
+| PortageRouter | `0x9eacb164e5B9D3D24b1A87437668B2245169eD4B` |
+| PortageMintForwarder | `0x07226E6163B3128b805774F73D26854a4de3661A` |
+
+Not yet done: no app registered (`registry.registerApp(...)`), no guardian set.
+
+Re-verify wiring anytime:
+```bash
+cast call 0xEEc603760483B0689B76fb3780eE7edc2E1661b4 'creditor()(address)' --rpc-url "$ARC_RPC_URL"
+cast call 0xEEc603760483B0689B76fb3780eE7edc2E1661b4 'debitor()(address)'  --rpc-url "$ARC_RPC_URL"
+cast call 0x9eacb164e5B9D3D24b1A87437668B2245169eD4B 'forwarder()(address)' --rpc-url "$ARC_RPC_URL"
+```
+
+---
+
 ## Deploy — run in a SEPARATE terminal (see gotcha #1)
 
 One-time keystore import (Coliseum method):

@@ -1,6 +1,6 @@
 # Portage — Architecture Design
 
-> **Status:** Design draft v0.1 (pre-implementation, no code yet)
+> **Status:** v0.1 implemented, tested (78 tests), and **deployed + wired on Arc Testnet 2026-07-20** (addresses in CLAUDE.md → "Deployed addresses").
 > **Chain:** Arc Testnet (chainId `5042002`, CCTP domain `26`) as settlement hub
 > **Protocol:** Circle Gateway (unified USDC balance) — raw CCTP intentionally not used in v0.1
 > **Custody:** Non-custodial — end users / app treasuries sign with their own EOAs
