@@ -341,12 +341,12 @@ Status legend: **[built]** = implemented + tested in v0.1 Core; **[periphery]** 
 | Ledger | `mapping(bytes32 appId => uint256) totalCredited` + `totalPaid` | lifetime reconciliation counters (moved here from `AppConfig`) | per-app, audit-only | **[built]** |
 | Ledger | `mapping(bytes32 transferId => bool) creditProcessed` | inbound idempotency (credit-once per Gateway spec hash) | prevents double-credit | **[built]** |
 | PayoutEngine | `mapping(bytes32 appId => mapping(bytes32 referenceId => bool)) settled` | outbound idempotency | prevents double-pay / replay | **[built]** |
-| Router | `mapping(bytes32 transferId => bool) processed` | inbound idempotency at the mint landing zone (defense-in-depth over Ledger's own guard) | prevents double-credit | **[periphery]** |
-| Router | `mapping(bytes32 appId => mapping(bytes32 => uint256)) quarantine` | unmatched/malformed deposits held pending governor recovery | recoverable, never mis-credited | **[periphery]** |
+| Router | `mapping(bytes32 specHash => bool) processed` | inbound idempotency at the mint landing zone (defense-in-depth over Ledger's own guard) | prevents double-credit | **[built]** |
+| Router | `mapping(bytes32 specHash => uint256) quarantined` + `uint256 quarantinedTotal` | unmatched/malformed deposits held pending governor recovery | recoverable, never mis-credited | **[built]** |
 
 All app-scoped maps are keyed by `appId` first — there is no global mutable balance that any single app can touch.
 
-> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`), not only in the Router as the original draft suggested. This makes credit-once hold independently of the periphery — the Router's own `processed` map (when built) becomes defense-in-depth rather than the sole guard. The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router will route those to quarantine before ever calling `credit`.
+> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`), not only in the Router as the original draft suggested. This makes credit-once hold independently of the periphery — the Router's own `processed` map (when built) becomes defense-in-depth rather than the sole guard. The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router routes those (plus malformed-hookData deposits) to quarantine instead of ever calling `credit` — so the atomic mint still completes and funds are captured, never mis-credited or stranded.
 
 ---
 
