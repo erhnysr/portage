@@ -114,18 +114,21 @@ Deployed once, never upgraded. No `delegatecall`, no admin that can move funds. 
 
 ```solidity
 struct AppConfig {
+    bool    exists;            // registration flag
+    bool    paused;            // app-level circuit breaker (isolated)
     address owner;             // can rotate controller, pause the app
     address payoutController;  // the only key allowed to trigger payouts for this app
-    bool    paused;            // app-level circuit breaker (isolated)
-    uint256 totalCredited;     // lifetime in  (invariant accounting)
-    uint256 totalPaid;         // lifetime out
 }
 
 function registerApp(bytes32 appId, address owner, address payoutController) external;   // onlyGovernor
 function setPayoutController(bytes32 appId, address newController) external;              // onlyAppOwner(appId)
+function transferAppOwnership(bytes32 appId, address newOwner) external;                  // onlyAppOwner(appId)
 function setAppPaused(bytes32 appId, bool paused) external;                               // onlyAppOwner or onlyGuardian
+function setGuardian(address guardian) external;                                          // onlyGovernor
 function appConfig(bytes32 appId) external view returns (AppConfig memory);
 ```
+
+> **Implementation note (deliberate deviation from the original draft).** Lifetime accounting counters (`totalCredited` / `totalPaid`) were **moved out of `AppConfig` and into the `Ledger`**, co-located with the balances they derive from. This keeps `AppRegistry` as pure identity/access state and avoids a Registry↔Ledger write-coupling (the Ledger would otherwise have to call back into the Registry on every credit/debit). The `AppConfig.exists` flag replaces the implicit "registered" check. This is within the doc's stated allowance that the three Core modules "may be one contract or three linked immutables."
 
 #### Ledger — namespaced per-app balances (isolation core)
 
@@ -328,16 +331,22 @@ PayoutEngine → debit ledger → GatewayAdapter.initiateOutbound(destDomain=6, 
 
 ## 6. Storage Layout Summary
 
-| Contract | Key storage | Purpose | Isolation role |
-|---|---|---|---|
-| AppRegistry | `mapping(bytes32 appId => AppConfig)` | ownership, controller, pause, lifetime totals | binds appId ↔ authorized keys |
-| Ledger | `mapping(bytes32 appId => mapping(bytes32 account => uint256))` | per-app, per-account balances | **primary isolation boundary** |
-| Ledger | `mapping(bytes32 appId => uint256) appTotal` + `uint256 custodyTotal` | invariant accounting | detects cross-app leakage |
-| Router | `mapping(bytes32 transferId => bool) processed` | inbound idempotency | prevents double-credit |
-| PayoutEngine | `mapping(bytes32 appId => mapping(bytes32 referenceId => bool)) settled` | outbound idempotency | prevents double-pay / replay |
-| AppRegistry | `mapping(bytes32 appId => mapping(bytes32 => uint256)) quarantine` | unmatched/malformed deposits | recoverable, never mis-credited |
+Status legend: **[built]** = implemented + tested in v0.1 Core; **[periphery]** = deferred to the Router/Forwarder layer (not in the Core contracts yet).
+
+| Contract | Key storage | Purpose | Isolation role | Status |
+|---|---|---|---|---|
+| AppRegistry | `mapping(bytes32 appId => AppConfig{exists,paused,owner,payoutController})` + `address guardian` | identity, ownership, controller, pause | binds appId ↔ authorized keys | **[built]** |
+| Ledger | `mapping(bytes32 appId => mapping(bytes32 account => uint256))` | per-app, per-account balances | **primary isolation boundary** | **[built]** |
+| Ledger | `mapping(bytes32 appId => uint256) appTotal` + `uint256 custodyTotal` | invariant accounting | detects cross-app leakage | **[built]** |
+| Ledger | `mapping(bytes32 appId => uint256) totalCredited` + `totalPaid` | lifetime reconciliation counters (moved here from `AppConfig`) | per-app, audit-only | **[built]** |
+| Ledger | `mapping(bytes32 transferId => bool) creditProcessed` | inbound idempotency (credit-once per Gateway spec hash) | prevents double-credit | **[built]** |
+| PayoutEngine | `mapping(bytes32 appId => mapping(bytes32 referenceId => bool)) settled` | outbound idempotency | prevents double-pay / replay | **[built]** |
+| Router | `mapping(bytes32 transferId => bool) processed` | inbound idempotency at the mint landing zone (defense-in-depth over Ledger's own guard) | prevents double-credit | **[periphery]** |
+| Router | `mapping(bytes32 appId => mapping(bytes32 => uint256)) quarantine` | unmatched/malformed deposits held pending governor recovery | recoverable, never mis-credited | **[periphery]** |
 
 All app-scoped maps are keyed by `appId` first — there is no global mutable balance that any single app can touch.
+
+> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`), not only in the Router as the original draft suggested. This makes credit-once hold independently of the periphery — the Router's own `processed` map (when built) becomes defense-in-depth rather than the sole guard. The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router will route those to quarantine before ever calling `credit`.
 
 ---
 
