@@ -3,6 +3,9 @@ out/
 cache/
 broadcast/
 
+# TypeScript build output
+dist/
+
 # Deps installed as git submodules under lib/ are tracked; build artifacts are not
 
 # Node / reference material (not part of the Portage contracts project)
