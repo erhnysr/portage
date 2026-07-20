@@ -88,18 +88,56 @@ export class PortageClient {
 
   /**
    * Convenience: approve then deposit. If `sourcePublicClient` is provided, waits for the approve
-   * receipt before depositing (recommended to avoid nonce/allowance races).
+   * receipt AND polls the on-chain allowance until it is actually visible before depositing. The
+   * allowance poll matters on load-balanced public RPCs (e.g. sepolia.base.org), which are
+   * eventually consistent: a receipt can confirm on one node while the next gas-estimation read
+   * hits a lagging node that still reports the old allowance — which would revert the deposit.
    */
   async deposit(
     walletClient: WalletClient,
     params: { chain: SourceChain; amount: bigint; sourcePublicClient?: PublicClient },
   ): Promise<{ approveTx: Hash; depositTx: Hash }> {
+    const owner = requireAccount(walletClient).address;
     const approveTx = await this.approveGateway(walletClient, params);
+
     if (params.sourcePublicClient) {
-      await params.sourcePublicClient.waitForTransactionReceipt({ hash: approveTx });
+      const receipt = await params.sourcePublicClient.waitForTransactionReceipt({ hash: approveTx });
+      if (receipt.status !== "success") throw new Error(`approve tx reverted: ${approveTx}`);
+      await this.waitForAllowance(
+        params.sourcePublicClient,
+        sourceChainUsdc(params.chain),
+        owner,
+        GATEWAY.wallet,
+        params.amount,
+      );
     }
+
     const depositTx = await this.depositToGateway(walletClient, params);
     return { approveTx, depositTx };
+  }
+
+  /** Polls the ERC20 allowance until it is at least `min` (handles eventually-consistent RPCs). */
+  async waitForAllowance(
+    publicClient: PublicClient,
+    token: Address,
+    owner: Address,
+    spender: Address,
+    min: bigint,
+    opts: { tries?: number; delayMs?: number } = {},
+  ): Promise<bigint> {
+    const tries = opts.tries ?? 20;
+    const delayMs = opts.delayMs ?? 2000;
+    for (let i = 0; i < tries; i++) {
+      const allowance = await publicClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [owner, spender],
+      });
+      if (allowance >= min) return allowance;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    throw new Error(`allowance for ${spender} did not reach ${min} in time (RPC lag or approve failed)`);
   }
 
   // ------------------------------------------------------------------
