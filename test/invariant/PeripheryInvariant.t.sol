@@ -23,6 +23,7 @@ contract PeripheryInvariantTest is Test {
     PeripheryHandler handler;
 
     uint256 signerPk = 0xA11CE;
+    uint256 depositorPk = 0xD3903170;
     bytes32[] apps;
     bytes32[] accounts;
 
@@ -45,7 +46,7 @@ contract PeripheryInvariantTest is Test {
             registry.registerApp(apps[i], address(this), address(this));
         }
 
-        handler = new PeripheryHandler(forwarder, router, ledger, signerPk, apps, accounts);
+        handler = new PeripheryHandler(forwarder, router, ledger, signerPk, depositorPk, apps, accounts);
 
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = handler.consolidate.selector;

@@ -14,6 +14,7 @@ abstract contract GatewayTestHelper is Test {
     struct SpecParams {
         uint32 sourceDomain;
         uint32 destinationDomain;
+        address sourceDepositor;
         address destinationRecipient;
         address destinationCaller;
         uint256 value;
@@ -33,7 +34,7 @@ abstract contract GatewayTestHelper is Test {
             bytes32(0), // 48  destinationContract
             bytes32(0), // 80  sourceToken
             bytes32(0), // 112 destinationToken
-            bytes32(0), // 144 sourceDepositor
+            bytes32(uint256(uint160(p.sourceDepositor))), // 144 sourceDepositor
             bytes32(uint256(uint160(p.destinationRecipient))) // 176 recipient
         );
         bytes memory tail = abi.encodePacked(
