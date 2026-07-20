@@ -52,7 +52,8 @@ Circle Gateway does the actual cross-chain USDC movement (burn intent → attest
         ▼                                                          │
   ┌──────────────────────┐                                         │
   │  Portage Relayer      │  (5) gas pre-flight on Arc (mandatory) │
-  │  (liveness only)      │  (6) Forwarder.executeMint(att, sig) ──┐│
+  │  (liveness only)      │  (6) Forwarder.executeMintWithMeta ────┐│
+  │                       │      (att, sig, meta, metaSig)         ││
   └──────────────────────┘                                        ││
                                                                    ││
              ▼               ARC TESTNET (domain 26) — SETTLEMENT HUB
@@ -289,13 +290,17 @@ User EOA (Base Sepolia)          Portage SDK           Gateway API        Relaye
       │                              │◀── attestation+sig ─│                 │                  │
  (4)  │                              │ handoff ────────────┼───────────────▶ │                  │
  (5)  │                              │                     │   gas pre-flight (Arc, gas=USDC) ──▶│ check
- (6)  │                              │                     │   Forwarder.executeMint(att,sig) ──▶│ PortageMintForwarder
-      │                              │                     │                 │     ├ parse spec (recipient,value,hookData)
+ (6)  │                              │                     │   Forwarder.executeMintWithMeta ───▶│ PortageMintForwarder
+      │                              │                     │   (att, sig, meta, metaSig)     │     ├ recover(metaSig)==sourceDepositor
       │                              │                     │                 │     ├ gatewayMint → USDC minted to Router
-      │                              │                     │                 │     └ Router.credit(hookData,value,specHash)
+      │                              │                     │                 │     └ Router.credit(encode(meta),value,specHash)
  (7)  │                              │                     │                 │   Ledger: balances[app][account] += value
       │                              │                     │                 │   invariant check ✓        (all one atomic tx)
 ```
+
+> In v0.1 the burn intent carries **empty hookData** and PayoutMeta is delivered as the separate
+> `meta`+`metaSig` arguments above, bound to `specHash` and signed by the depositor (§13). The
+> `hookData`-carried variant (`executeMint`) is retained for forward-compatibility.
 
 Key safety notes: (a) gas pre-flight (5) is a **mandatory** step — if the Arc mint would fail for gas, do not proceed; the attestation persists and can be minted later, so no funds are stranded. (b) `specHash` (the `keccak256` of the `TransferSpec`, recorded on-chain by `gatewayMint` itself for replay protection — Mints.sol:335) makes credit idempotent: a double-submit reverts inside `gatewayMint` before reaching `credit`. (c) Step (6) is a **single atomic transaction** — either USDC is minted *and* the ledger is credited, or neither happens.
 
@@ -522,6 +527,39 @@ Coliseum is registered once via `AppRegistry.registerApp(keccak("coliseum"), own
 **Consequence for Portage (primary flow chosen):** relayer/forwarder-driven, **not** native hook. Portage builds its own atomic composition via **`PortageMintForwarder`**, which in one transaction (a) decodes the authentic `hookData` from the attestation, (b) calls `gatewayMint` (USDC → `PortageRouter`), (c) calls `PortageRouter.credit(...)`. The burn intent pins `destinationRecipient = PortageRouter` and `destinationCaller = PortageMintForwarder` so only the forwarder can execute the mint — giving the atomicity and front-run protection a native hook would have, without depending on one.
 
 *No live funded test executed — the canonical source + deployed-proxy verification is authoritative. A live mint can still be run later as a redundant confirmation if desired, but it would not change the design.*
+
+---
+
+## 13. Decision Log — PayoutMeta decoupled from Gateway hookData (v0.1)
+
+**Finding (live, 2026-07-21).** During the first Coliseum end-to-end run, the Circle Gateway **testnet** transfer API (`POST /v1/transfer`) returned **500 Internal Server Error** whenever the burn intent carried non-empty `hookData`. Isolated with a controlled experiment on one real deposit (`sdk/e2e/hookdata-experiment.mjs`): identical spec, only `hookData` varied —
+
+| hookData | Result |
+|---|---|
+| 192-byte PayoutMeta | ❌ 500 Internal server error |
+| `0x` (empty) | ✅ success, attestation returned |
+
+The payload matched Circle's documented schema (`hookData: ^0x[a-fA-F0-9]*$`, "arbitrary bytes", no documented length limit) and Circle's own sample (`arc-multichain-wallet`) — which **always** sends `hookData:"0x"` and never exercises non-empty hookData. A 500 (server crash) rather than a 400 (validation) on a schema-valid request indicates the Gateway testnet transfer path does not currently support non-empty hookData (unhandled server path). This is a **Gateway API limitation**, not a Portage bug — and it does not contradict §12 (the *minter* ignores hookData regardless; the problem is the *API* refusing to attest it).
+
+**Decision: decouple PayoutMeta from the Gateway burn intent (option B1 — signed).** The burn intent is submitted with **empty hookData** (so the API works), and PayoutMeta travels as a **separate argument** to a new forwarder entrypoint, authorized by an **EIP-712 signature from the `sourceDepositor`** bound to the transfer's `specHash`.
+
+```
+executeMintWithMeta(attestation, signature, PayoutMeta meta, bytes metaSig)
+  ├─ recipient == router                        (as before)
+  ├─ specHash    = keccak(TransferSpec)          (from attestation)
+  ├─ depositor   = sourceDepositor               (from attestation)
+  ├─ recover(EIP712 PayoutMetaBinding{specHash, meta}, metaSig) == depositor   ← binds meta↔transfer↔user
+  ├─ gatewayMint → USDC to router
+  └─ router.credit(encode(meta), mintedΔ, specHash)
+```
+
+`PayoutMetaBinding` domain = `Portage / 1 / chainId(Arc) / verifyingContract(forwarder)`; typed fields `(bytes32 specHash, uint8 schema, bytes32 appId, bytes32 account, uint8 action, bytes32 referenceId, bytes32 payer)`.
+
+**Why B1 (signed) and not B2 (unsigned arg).** With PayoutMeta as a plain unsigned argument, a compromised/malicious relayer could attach a *different* meta and misattribute a deposit to another app (isolation violation T5/T6 — funds land in the wrong app's balance; recoverable by governance but still a safety break). Binding meta to `specHash` with the depositor's signature restores the exact tamper-evidence hookData gave us (the user authorizes precisely which app/account/reference their deposit credits), so a relayer remains **liveness-only**. Cost is one extra EIP-712 signature per consolidation — acceptable.
+
+**Security properties preserved.** Non-custodial (user signs both burn intent and meta binding); app isolation (meta bound to depositor + specHash; wrong/forged/tampered meta reverts — proven by `test_executeMintWithMeta_forgedMetaSig_reverts`, `…_metaSignedForDifferentSpecHash_reverts`, `…_tamperedMetaAfterSigning_reverts`); atomic mint+credit; unknown-app quarantine unchanged. The off-chain `specHash` the SDK computes was verified byte-for-byte equal to the on-chain decoder's (`transferSpecHash` ⟷ `AttestationDecoder.specHash`).
+
+**Forward-compat.** The original hookData path is retained as `executeMint(attestation, signature)` for the day Gateway supports non-empty hookData end to end; the SDK's `buildConsolidationIntent` accepts an optional `hookData` override for that path. When that day comes, the meta can move back inline and the extra signature dropped — no Core change.
 
 ---
 

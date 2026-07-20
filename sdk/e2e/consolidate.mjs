@@ -19,7 +19,6 @@ import {
   formatUnits,
   keccak256,
   toHex,
-  pad,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
@@ -29,6 +28,7 @@ import {
   PayoutAction,
   appIdFromName,
   accountIdFromName,
+  addressToBytes32,
   PORTAGE_ARC_TESTNET,
   ARC,
   GATEWAY,
@@ -70,7 +70,8 @@ const portage = new PortageClient({ arcPublicClient: arcPublic, gatewayApi });
 const appId = appIdFromName("coliseum");
 const arenaAccount = accountIdFromName("arena-e2e-1");
 const referenceId = keccak256(toHex(`entry-${Date.now()}`));
-const payer = pad(account.address, { size: 32 });
+const payer = addressToBytes32(account.address);
+const meta = { appId, account: arenaAccount, action: PayoutAction.EntryFee, referenceId, payer };
 
 log("== Portage E2E: Base Sepolia -> Arc coliseum ==");
 log("test EOA     :", account.address);
@@ -107,16 +108,16 @@ log("    approve tx:", approveTx);
 await basePublic.waitForTransactionReceipt({ hash: depositTx });
 log("    deposit tx:", depositTx, "(confirmed)\n");
 
-// ---- 2. build + sign the consolidation burn intent ----
-log("[2] build + sign consolidation intent (EntryFee)...");
-const intent = portage.buildConsolidationIntent({
-  sourceChain: "baseSepolia",
-  amount,
-  depositor: account.address,
-  meta: { appId, account: arenaAccount, action: PayoutAction.EntryFee, referenceId, payer },
-});
+// ---- 2. build + sign the consolidation burn intent (empty hookData) + the meta binding ----
+log("[2] build + sign consolidation intent (empty hookData) and PayoutMeta binding...");
+const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount, depositor: account.address });
 const signature = await baseWallet.signTypedData({ account, ...intent.typedData });
-log("    signed. salt:", intent.salt, "\n");
+
+const specHash = portage.specHash(intent);
+const metaBinding = portage.buildMetaBinding(specHash, meta);
+const metaSig = await baseWallet.signTypedData({ account, ...metaBinding });
+log("    burn intent signed. salt:", intent.salt);
+log("    specHash:", specHash, "meta binding signed.\n");
 
 // ---- 3. submit to Gateway API (retry until the deposit is observed / attested) ----
 log("[3] submit to Gateway API (may retry until deposit finalizes)...");
@@ -148,9 +149,14 @@ if (!transfer?.attestation || transfer.attestation === "0x") {
 if (!transfer?.attestation || transfer.attestation === "0x") throw new Error("no attestation received");
 log("    attestation received. transferId:", transfer.transferId, "\n");
 
-// ---- 4. executeMint on Arc (atomic mint + credit) ----
-log("[4] executeMint on Arc (atomic mint + credit)...");
-const mintTx = await portage.executeMint(arcWallet, { attestation: transfer.attestation, signature: transfer.signature });
+// ---- 4. executeMintWithMeta on Arc (atomic mint + credit, meta authorized by depositor sig) ----
+log("[4] executeMintWithMeta on Arc (atomic mint + credit)...");
+const mintTx = await portage.executeMintWithMeta(arcWallet, {
+  attestation: transfer.attestation,
+  signature: transfer.signature,
+  meta,
+  metaSig,
+});
 await arcPublic.waitForTransactionReceipt({ hash: mintTx });
 log("    mint tx:", mintTx, "(confirmed)\n");
 
