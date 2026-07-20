@@ -1,5 +1,6 @@
 import {
   erc20Abi,
+  parseUnits,
   type Account,
   type Address,
   type Hex,
@@ -268,6 +269,42 @@ export class PortageClient {
     const chains = opts?.sourceChains ?? (Object.keys(SOURCE_CHAINS) as SourceChain[]);
     const sources = chains.map((c) => ({ domain: SOURCE_CHAINS[c].domain, depositor }));
     return this.gatewayApi.getBalances("USDC", sources);
+  }
+
+  /**
+   * The Gateway-available USDC (atomic units) a depositor can transfer FROM a source chain. This
+   * is Circle's off-chain finalized balance, which lags on-chain deposits until finalization.
+   * Note: a transfer needs headroom for the fee — you cannot transfer the entire available amount.
+   */
+  async getGatewayAvailable(depositor: Address, chain: SourceChain): Promise<bigint> {
+    const domain = SOURCE_CHAINS[chain].domain;
+    const res = await this.gatewayApi.getBalances("USDC", [{ domain, depositor }]);
+    const entry = res.balances.find((b) => b.domain === domain);
+    return entry ? parseUnits(entry.balance, 6) : 0n;
+  }
+
+  /**
+   * Poll the Gateway available balance until it reflects at least `min` atomic units. Use after a
+   * deposit to wait out Circle's finalization lag before submitting a transfer (mirrors
+   * {waitForAllowance} for the on-chain side). Pass `min = value + maxFee` to guarantee fee headroom.
+   */
+  async waitForGatewayBalance(
+    depositor: Address,
+    chain: SourceChain,
+    min: bigint,
+    opts: { tries?: number; delayMs?: number } = {},
+  ): Promise<bigint> {
+    const tries = opts.tries ?? 60;
+    const delayMs = opts.delayMs ?? 5000;
+    let last = 0n;
+    for (let i = 0; i < tries; i++) {
+      last = await this.getGatewayAvailable(depositor, chain);
+      if (last >= min) return last;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    throw new Error(
+      `Gateway balance for ${depositor} on ${chain} reached only ${last} (< ${min}) in time — deposit not yet finalized`,
+    );
   }
 }
 

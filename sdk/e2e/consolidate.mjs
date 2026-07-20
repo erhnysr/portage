@@ -43,11 +43,15 @@ try {
   }
 } catch {}
 
-const { TEST_EOA_PK, ARC_RPC_URL, BASE_SEPOLIA_RPC_URL, AMOUNT_USDC = "1" } = process.env;
+const { TEST_EOA_PK, ARC_RPC_URL, BASE_SEPOLIA_RPC_URL, AMOUNT_USDC = "0.3" } = process.env;
 if (!TEST_EOA_PK || !ARC_RPC_URL) throw new Error("Set TEST_EOA_PK and ARC_RPC_URL (see e2e/.env.e2e)");
 if (ARC_RPC_URL.includes("REPLACE_WITH_YOUR_KEY")) throw new Error("Set a real ARC_RPC_URL key in e2e/.env.e2e");
 
-const amount = BigInt(Math.round(parseFloat(AMOUNT_USDC) * 1e6)); // USDC has 6 decimals
+const amount = BigInt(Math.round(parseFloat(AMOUNT_USDC) * 1e6)); // transfer value, USDC 6 decimals
+// Gateway deducts a fee and needs headroom — you cannot transfer the whole balance. Deposit
+// value + maxFee and wait until that much is FINALIZED in Gateway before transferring `amount`.
+const maxFee = amount > 10_000_000n ? 2_010_000n : amount / 10n;
+const depositAmount = amount + maxFee;
 const account = privateKeyToAccount(TEST_EOA_PK);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -75,7 +79,7 @@ const meta = { appId, account: arenaAccount, action: PayoutAction.EntryFee, refe
 
 log("== Portage E2E: Base Sepolia -> Arc coliseum ==");
 log("test EOA     :", account.address);
-log("amount       :", formatUnits(amount, 6), "USDC");
+log("transfer     :", formatUnits(amount, 6), "USDC  (deposit", formatUnits(depositAmount, 6), "for fee headroom)");
 log("appId        :", appId);
 log("arenaAccount :", arenaAccount);
 log("referenceId  :", referenceId);
@@ -90,7 +94,7 @@ const [baseUsdc, baseEth, arcGas] = await Promise.all([
   arcPublic.getBalance({ address: account.address }),
 ]);
 log(`preflight: Base USDC=${formatUnits(baseUsdc, 6)}  Base ETH=${formatUnits(baseEth, 18)}  Arc gas(USDC)=${formatUnits(arcGas, 6)}`);
-if (baseUsdc < amount) throw new Error("test EOA has insufficient Base Sepolia USDC — fund via faucet.circle.com");
+if (baseUsdc < depositAmount) throw new Error("test EOA has insufficient Base Sepolia USDC — fund via faucet.circle.com");
 if (baseEth === 0n) throw new Error("test EOA has no Base Sepolia ETH for gas — fund via a Base Sepolia ETH faucet");
 if (arcGas === 0n) throw new Error("test EOA has no Arc USDC for gas — fund Arc Testnet USDC via faucet.circle.com");
 
@@ -101,16 +105,21 @@ log("ledger balance before:", formatUnits(ledgerBefore, 6), "USDC\n");
 log("[1] approve + deposit to GatewayWallet on Base Sepolia...");
 const { approveTx, depositTx } = await portage.deposit(baseWallet, {
   chain: "baseSepolia",
-  amount,
+  amount: depositAmount,
   sourcePublicClient: basePublic,
 });
 log("    approve tx:", approveTx);
 await basePublic.waitForTransactionReceipt({ hash: depositTx });
-log("    deposit tx:", depositTx, "(confirmed)\n");
+log("    deposit tx:", depositTx, "(confirmed on-chain)\n");
+
+// ---- 1b. wait for Gateway to FINALIZE the deposit (off-chain balance lags on-chain) ----
+log("[1b] waiting for Gateway to reflect the deposit (finalization lag)...");
+const available = await portage.waitForGatewayBalance(account.address, "baseSepolia", amount + maxFee);
+log("    Gateway available:", formatUnits(available, 6), "USDC (>= value+fee)\n");
 
 // ---- 2. build + sign the consolidation burn intent (empty hookData) + the meta binding ----
 log("[2] build + sign consolidation intent (empty hookData) and PayoutMeta binding...");
-const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount, depositor: account.address });
+const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount, depositor: account.address, maxFee });
 const signature = await baseWallet.signTypedData({ account, ...intent.typedData });
 
 const specHash = portage.specHash(intent);
