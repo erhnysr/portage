@@ -28,6 +28,7 @@ library AttestationDecoder {
     // Attestation-absolute offsets.
     uint256 internal constant SPEC_OFFSET = 40;
     uint256 internal constant SPEC_LEN_OFFSET = 36;
+    uint256 internal constant DEPOSITOR_OFFSET = 184; // 40 + 144
     uint256 internal constant RECIPIENT_OFFSET = 216; // 40 + 176
     uint256 internal constant CALLER_OFFSET = 280; // 40 + 240
     uint256 internal constant VALUE_OFFSET = 312; // 40 + 272
@@ -48,6 +49,10 @@ library AttestationDecoder {
     function specHash(bytes calldata payload) internal pure returns (bytes32) {
         uint256 specLen = uint32(bytes4(payload[SPEC_LEN_OFFSET:SPEC_LEN_OFFSET + 4]));
         return keccak256(payload[SPEC_OFFSET:SPEC_OFFSET + specLen]);
+    }
+
+    function sourceDepositor(bytes calldata payload) internal pure returns (address) {
+        return address(uint160(uint256(bytes32(payload[DEPOSITOR_OFFSET:DEPOSITOR_OFFSET + 32]))));
     }
 
     function destinationRecipient(bytes calldata payload) internal pure returns (address) {

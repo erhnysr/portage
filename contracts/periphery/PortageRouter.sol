@@ -120,14 +120,15 @@ contract PortageRouter is Ownable2Step {
     ///         registered app it forwards the USDC into the Ledger, otherwise it quarantines.
     ///         Never reverts on bad hookData (so the atomic mint still completes and funds are
     ///         captured in quarantine rather than mis-credited or stranded).
-    /// @param hookData     The PayoutMeta bytes from the signed TransferSpec.
+    /// @param meta         The encoded PayoutMeta bytes (from separately-signed metadata in v0.1,
+    ///                     or from the signed TransferSpec's hookData in the forward-compat path).
     /// @param mintedValue  The exact USDC amount just minted to this router (balance delta).
     /// @param specHash     The Gateway spec hash (idempotency key).
-    function credit(bytes calldata hookData, uint256 mintedValue, bytes32 specHash) external onlyForwarder {
+    function credit(bytes memory meta, uint256 mintedValue, bytes32 specHash) external onlyForwarder {
         if (processed[specHash]) revert AlreadyProcessed(specHash);
         processed[specHash] = true;
 
-        (bool ok, PayoutMeta memory m) = hookData.tryDecode();
+        (bool ok, PayoutMeta memory m) = meta.tryDecode();
 
         if (!ok) {
             _quarantine(specHash, mintedValue, QuarantineReason.MalformedHookData);
