@@ -1,6 +1,5 @@
-import { pad, toHex, maxUint256, type Address, type Hex } from "viem";
+import { pad, toHex, maxUint256, encodePacked, keccak256, type Address, type Hex } from "viem";
 import { ARC, GATEWAY, sourceChainDomain, sourceChainUsdc, type SourceChain } from "./config.js";
-import { encodePayoutMeta, type PayoutMeta } from "./payoutMeta.js";
 
 /** EIP-712 domain used by Circle's GatewayWallet for burn intents (name + version only). */
 export const GATEWAY_EIP712_DOMAIN = { name: "GatewayWallet", version: "1" } as const;
@@ -76,8 +75,12 @@ export interface BuildConsolidationParams {
   /** Portage router (destinationRecipient) and forwarder (destinationCaller). */
   router: Address;
   forwarder: Address;
-  /** Payout metadata carried in hookData. */
-  meta: PayoutMeta;
+  /**
+   * hookData for the burn intent. Defaults to "0x" (empty): the Circle Gateway testnet transfer
+   * API returns 500 on non-empty hookData (ARCHITECTURE.md §13), so v0.1 delivers PayoutMeta out
+   * of band via executeMintWithMeta. Only set this for the forward-compat hookData path.
+   */
+  hookData?: Hex;
   /** Optional overrides. */
   salt?: Hex;
   maxFee?: bigint;
@@ -102,9 +105,10 @@ function defaultMaxFee(amount: bigint): bigint {
 
 /**
  * Builds the EIP-712 burn intent that consolidates USDC from `sourceChain` into Portage on Arc.
- * The intent pins `destinationRecipient = router` and `destinationCaller = forwarder`, and carries
- * the encoded PayoutMeta in hookData. Sign `typedData` with the depositor/signer EOA, then submit
- * `message` to the Gateway API.
+ * The intent pins `destinationRecipient = router` and `destinationCaller = forwarder`. hookData is
+ * empty by default (v0.1); PayoutMeta is delivered out of band and bound to the specHash — see
+ * {transferSpecHash} and PortageClient.buildMetaBinding. Sign `typedData` with the depositor/signer
+ * EOA, then submit `message` to the Gateway API.
  */
 export function buildConsolidationIntent(params: BuildConsolidationParams): ConsolidationIntent {
   const salt = params.salt ?? randomSalt();
@@ -124,7 +128,7 @@ export function buildConsolidationIntent(params: BuildConsolidationParams): Cons
     destinationCaller: addressToBytes32(params.forwarder),
     value: params.amount,
     salt,
-    hookData: encodePayoutMeta(params.meta),
+    hookData: params.hookData ?? "0x",
   };
 
   const message: BurnIntentMessage = {
@@ -138,4 +142,57 @@ export function buildConsolidationIntent(params: BuildConsolidationParams): Cons
     message,
     salt,
   };
+}
+
+/**
+ * Canonically encodes a TransferSpec to the exact big-endian byte layout Circle's Gateway
+ * contracts use (magic 0xca85def7, version, domains, 32-byte address fields, value, salt, then a
+ * uint32 hookData length followed by hookData). Must match AttestationDecoder / TransferSpec.sol.
+ */
+export function encodeTransferSpec(spec: TransferSpecMessage): Hex {
+  const hookData = spec.hookData ?? "0x";
+  const hookLen = (hookData.length - 2) / 2;
+  return encodePacked(
+    [
+      "bytes4", // magic
+      "uint32", // version
+      "uint32", // sourceDomain
+      "uint32", // destinationDomain
+      "bytes32", // sourceContract
+      "bytes32", // destinationContract
+      "bytes32", // sourceToken
+      "bytes32", // destinationToken
+      "bytes32", // sourceDepositor
+      "bytes32", // destinationRecipient
+      "bytes32", // sourceSigner
+      "bytes32", // destinationCaller
+      "uint256", // value
+      "bytes32", // salt
+      "uint32", // hookDataLength
+      "bytes", // hookData
+    ],
+    [
+      "0xca85def7",
+      spec.version,
+      spec.sourceDomain,
+      spec.destinationDomain,
+      spec.sourceContract,
+      spec.destinationContract,
+      spec.sourceToken,
+      spec.destinationToken,
+      spec.sourceDepositor,
+      spec.destinationRecipient,
+      spec.sourceSigner,
+      spec.destinationCaller,
+      spec.value,
+      spec.salt,
+      hookLen,
+      hookData,
+    ],
+  );
+}
+
+/** The Gateway spec hash = keccak256 of the canonically-encoded TransferSpec. */
+export function transferSpecHash(spec: TransferSpecMessage): Hex {
+  return keccak256(encodeTransferSpec(spec));
 }

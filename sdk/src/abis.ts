@@ -80,7 +80,28 @@ export const payoutEngineAbi = [
   },
 ] as const;
 
+const payoutMetaComponents = [
+  { name: "schema", type: "uint8" },
+  { name: "appId", type: "bytes32" },
+  { name: "account", type: "bytes32" },
+  { name: "action", type: "uint8" },
+  { name: "referenceId", type: "bytes32" },
+  { name: "payer", type: "bytes32" },
+] as const;
+
 export const mintForwarderAbi = [
+  {
+    type: "function",
+    name: "executeMintWithMeta",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "attestationPayload", type: "bytes" },
+      { name: "signature", type: "bytes" },
+      { name: "meta", type: "tuple", components: payoutMetaComponents },
+      { name: "metaSig", type: "bytes" },
+    ],
+    outputs: [],
+  },
   {
     type: "function",
     name: "executeMint",
@@ -90,6 +111,16 @@ export const mintForwarderAbi = [
       { name: "signature", type: "bytes" },
     ],
     outputs: [],
+  },
+  {
+    type: "function",
+    name: "hashMetaBinding",
+    stateMutability: "view",
+    inputs: [
+      { name: "specHash", type: "bytes32" },
+      { name: "meta", type: "tuple", components: payoutMetaComponents },
+    ],
+    outputs: [{ name: "", type: "bytes32" }],
   },
 ] as const;
 

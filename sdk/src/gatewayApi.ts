@@ -36,6 +36,11 @@ export class GatewayApi {
       },
     ];
 
+    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+    if (env?.PORTAGE_DEBUG) {
+      console.error("[PORTAGE_DEBUG] POST /v1/transfer body:\n" + JSON.stringify(payload, null, 2));
+    }
+
     const res = await this.post("/v1/transfer", payload);
     const result = Array.isArray(res) ? res[0] : res;
     return {

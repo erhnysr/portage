@@ -12,9 +12,24 @@ import { gatewayWalletAbi, ledgerAbi, mintForwarderAbi } from "./abis.js";
 import { GatewayApi, type GatewayBalances } from "./gatewayApi.js";
 import {
   buildConsolidationIntent as buildIntent,
+  transferSpecHash,
   type BuildConsolidationParams,
   type ConsolidationIntent,
 } from "./burnIntent.js";
+import { payoutMetaTuple, type PayoutMeta } from "./payoutMeta.js";
+
+/** EIP-712 type binding a PayoutMeta to a transfer's specHash (matches PortageMintForwarder). */
+export const META_BINDING_TYPES = {
+  PayoutMetaBinding: [
+    { name: "specHash", type: "bytes32" },
+    { name: "schema", type: "uint8" },
+    { name: "appId", type: "bytes32" },
+    { name: "account", type: "bytes32" },
+    { name: "action", type: "uint8" },
+    { name: "referenceId", type: "bytes32" },
+    { name: "payer", type: "bytes32" },
+  ],
+} as const;
 
 export interface PortageContracts {
   router: Address;
@@ -151,15 +166,64 @@ export class PortageClient {
     return buildIntent({ ...params, router: this.contracts.router, forwarder: this.contracts.forwarder });
   }
 
+  /** The Gateway spec hash for an intent — the id PayoutMeta is bound to (computed off-chain). */
+  specHash(intent: ConsolidationIntent): Hex {
+    return transferSpecHash(intent.message.spec);
+  }
+
+  /**
+   * Build the EIP-712 PayoutMetaBinding typed data. The depositor signs this to authorize `meta`
+   * for the transfer identified by `specHash`; the forwarder verifies the signature came from the
+   * attestation's sourceDepositor before crediting. Sign with walletClient.signTypedData().
+   */
+  buildMetaBinding(specHash: Hex, meta: PayoutMeta) {
+    const [schema, appId, account, action, referenceId, payer] = payoutMetaTuple(meta);
+    return {
+      domain: {
+        name: "Portage",
+        version: "1",
+        chainId: ARC.chainId,
+        verifyingContract: this.contracts.forwarder,
+      },
+      types: META_BINDING_TYPES,
+      primaryType: "PayoutMetaBinding" as const,
+      message: { specHash, schema, appId, account, action, referenceId, payer },
+    };
+  }
+
   /** Submit a signed burn intent to the Gateway API and get the attestation for Arc. */
   async submitConsolidation(intent: ConsolidationIntent, signature: Hex) {
     return this.gatewayApi.submitTransfer(intent.message, signature);
   }
 
   /**
-   * Execute the mint on Arc: forwarder.executeMint(attestation, signature). This is the atomic
-   * mint + credit step. Typically run by a relayer, but any caller works — the burn intent's
-   * destinationCaller pins execution to the forwarder, so it cannot be front-run.
+   * PRIMARY (v0.1): execute the atomic mint + credit on Arc with PayoutMeta delivered separately
+   * and authorized by the depositor's meta-binding signature. Any caller (typically a relayer)
+   * can send it — the burn intent's destinationCaller pins execution to the forwarder.
+   */
+  async executeMintWithMeta(
+    walletClient: WalletClient,
+    params: { attestation: Hex; signature: Hex; meta: PayoutMeta; metaSig: Hex },
+  ): Promise<Hash> {
+    const [schema, appId, account, action, referenceId, payer] = payoutMetaTuple(params.meta);
+    return walletClient.writeContract({
+      address: this.contracts.forwarder,
+      abi: mintForwarderAbi,
+      functionName: "executeMintWithMeta",
+      args: [
+        params.attestation,
+        params.signature,
+        { schema, appId, account, action, referenceId, payer },
+        params.metaSig,
+      ],
+      account: requireAccount(walletClient),
+      chain: walletClient.chain,
+    });
+  }
+
+  /**
+   * FORWARD-COMPAT: forwarder.executeMint(attestation, signature), reading PayoutMeta from the
+   * attestation's own hookData. Only usable once Gateway carries non-empty hookData end to end.
    */
   async executeMint(
     walletClient: WalletClient,

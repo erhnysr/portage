@@ -26,30 +26,33 @@ const portage = new PortageClient({ arcPublicClient: arc });
 const wallet = createWalletClient({ chain: baseSepolia, transport: custom(window.ethereum) });
 const [depositor] = await wallet.getAddresses();
 
+// the PayoutMeta describing how to credit this deposit (delivered out of band in v0.1)
+const meta = {
+  appId: appIdFromName("coliseum"),
+  account: accountIdFromName("arena-1"),
+  action: PayoutAction.EntryFee,
+  referenceId: accountIdFromName("entry-42"),
+  payer: addressToBytes32(depositor),
+};
+
 // 1. deposit into the Gateway unified balance
 await portage.deposit(wallet, { chain: "baseSepolia", amount: 5_000000n }); // 5 USDC (6 decimals)
 
-// 2. build the consolidation intent (destinationRecipient/caller are injected from config)
-const intent = portage.buildConsolidationIntent({
-  sourceChain: "baseSepolia",
-  amount: 5_000000n,
-  depositor,
-  meta: {
-    appId: appIdFromName("coliseum"),
-    account: accountIdFromName("arena-1"),
-    action: PayoutAction.EntryFee,
-    referenceId: accountIdFromName("entry-42"),
-    payer: `0x${depositor.slice(2).padStart(64, "0")}`,
-  },
-});
+// 2. build the consolidation intent (empty hookData) and sign both the burn intent AND the
+//    PayoutMeta binding (bound to the transfer's specHash — this is what keeps it non-custodial)
+const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount: 5_000000n, depositor });
+const burnSig = await wallet.signTypedData({ account: depositor, ...intent.typedData });
 
-// 3. sign (non-custodial) and submit → attestation
-const signature = await wallet.signTypedData({ account: depositor, ...intent.typedData });
-const { attestation, signature: attSig } = await portage.submitConsolidation(intent, signature);
+const specHash = portage.specHash(intent);
+const metaSig = await wallet.signTypedData({ account: depositor, ...portage.buildMetaBinding(specHash, meta) });
 
-// 4. execute the atomic mint + credit on Arc (relayer or self; pins to the forwarder)
+// 3. submit the burn intent → attestation
+const { attestation, signature: attSig } = await portage.submitConsolidation(intent, burnSig);
+
+// 4. execute the atomic mint + credit on Arc, passing the meta + its signature (relayer or self;
+//    the forwarder verifies the meta was signed by the depositor before crediting)
 const arcWallet = createWalletClient({ chain: arcTestnet, transport: http(), account: relayerAccount });
-await portage.executeMint(arcWallet, { attestation, signature: attSig });
+await portage.executeMintWithMeta(arcWallet, { attestation, signature: attSig, meta, metaSig });
 
 // reads
 await portage.getAppBalance(appIdFromName("coliseum"), accountIdFromName("arena-1"));
@@ -88,5 +91,5 @@ await payouts.distribute({
 ## Notes
 
 - Amounts are atomic USDC units (6 decimals): `5 USDC == 5_000000n`.
-- `hookData` is the encoded `PayoutMeta`; it rides inside the Circle-signed TransferSpec, so it is tamper-evident. Malformed or unknown-app deposits are quarantined on the router, never mis-credited.
-- Gateway does not execute hooks; `executeMint` is Portage's own atomic composition (see ARCHITECTURE.md §12).
+- **PayoutMeta is delivered out of band in v0.1** (empty Gateway hookData) because the Circle Gateway testnet transfer API returns 500 on non-empty hookData (ARCHITECTURE.md §13). It is bound to the transfer's `specHash` by the depositor's EIP-712 signature (`buildMetaBinding`), which the forwarder verifies before crediting — so a relayer cannot misattribute a deposit. Unknown-app deposits are quarantined on the router, never mis-credited.
+- Gateway does not execute hooks; `executeMintWithMeta` is Portage's own atomic composition (see ARCHITECTURE.md §12). `executeMint` (hookData path) remains for forward-compat.

@@ -1,4 +1,4 @@
-import { encodeAbiParameters, decodeAbiParameters, keccak256, toHex, type Hex } from "viem";
+import { encodeAbiParameters, decodeAbiParameters, keccak256, pad, toHex, type Address, type Hex } from "viem";
 
 /** Action semantics for a consolidation credit (matches PayoutAction in the contracts). */
 export enum PayoutAction {
@@ -50,6 +50,16 @@ export function encodePayoutMeta(meta: PayoutMeta): Hex {
 export function decodePayoutMeta(data: Hex): PayoutMeta {
   const [schema, appId, account, action, referenceId, payer] = decodeAbiParameters(PAYOUT_META_ABI, data);
   return { schema, appId, account, action: action as PayoutAction, referenceId, payer };
+}
+
+/** Left-pad an address to bytes32, lowercased (encoding hygiene — avoids mixed-case hex). */
+export function addressToBytes32(addr: Address): Hex {
+  return pad(addr.toLowerCase() as Hex, { size: 32 });
+}
+
+/** Ordered tuple [schema, appId, account, action, referenceId, payer] for contract calls. */
+export function payoutMetaTuple(meta: PayoutMeta): [number, Hex, Hex, number, Hex, Hex] {
+  return [meta.schema ?? PAYOUT_META_SCHEMA_V1, meta.appId, meta.account, meta.action, meta.referenceId, meta.payer];
 }
 
 /** Derive a bytes32 app id from a human name, e.g. appIdFromName("coliseum"). */
