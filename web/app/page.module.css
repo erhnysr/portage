@@ -137,34 +137,31 @@
   letter-spacing: 1px;
 }
 
-/* ---------- route diagram ---------- */
+/* ---------- route diagram ----------
+   Container keeps the 340:240 aspect ratio and fills its column (capped), so the SVG scales
+   fluidly. All labels/wordmark are SVG <text> in viewBox units, so they stay aligned at any size. */
 .diagram {
-  position: relative;
-  height: 240px;
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 340 / 240;
   background: rgba(237, 230, 214, 0.02);
   border: 1px solid rgba(237, 230, 214, 0.08);
   overflow: hidden;
 }
+.diagramSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .diagramWord {
-  position: absolute;
-  left: 220px;
-  top: 120px;
-  transform: translate(-50%, -50%);
+  fill: rgba(237, 230, 214, 0.08);
   font-family: var(--font-sans);
   font-weight: 700;
   font-size: 58px;
-  color: rgba(237, 230, 214, 0.08);
   letter-spacing: -0.5px;
-  white-space: nowrap;
-  z-index: 0;
-}
-.diagramSvg {
-  overflow: visible;
-  position: relative;
-  z-index: 1;
 }
 .diagramLabel {
-  position: absolute;
+  fill: var(--text);
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.5px;
@@ -346,4 +343,166 @@
 }
 .copy {
   font-family: var(--font-mono);
+}
+
+/* =====================================================================
+   Responsive breakpoints (desktop-first; base rules above target >1024px)
+   - tablet:  641px – 1024px
+   - mobile:  <= 640px
+   ===================================================================== */
+
+/* ---------- TABLET (<= 1024px) ---------- */
+@media (max-width: 1024px) {
+  .nav {
+    padding: 18px 32px;
+  }
+  .hero {
+    padding: 48px 32px 40px;
+  }
+  /* stack the hero: text over docket+diagram */
+  .heroGrid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .heroTitle {
+    font-size: 56px;
+  }
+  .section {
+    padding: 40px 32px;
+  }
+  .footer {
+    padding: 40px 32px 32px;
+  }
+  .sectionTitle {
+    font-size: 30px;
+  }
+  /* keep the 5-col shipments table on one line at this width */
+  .table {
+    font-size: 12px;
+  }
+  /* diagram can breathe a bit more once the column is full-width */
+  .diagram {
+    max-width: 460px;
+  }
+}
+
+/* ---------- MOBILE (<= 640px) ---------- */
+@media (max-width: 640px) {
+  .nav {
+    padding: 16px 20px;
+  }
+  /* manifest number doesn't fit next to the brand on phones */
+  .brandManifest {
+    display: none;
+  }
+  .navLinks {
+    gap: 18px;
+    font-size: 13px;
+  }
+
+  .hero {
+    padding: 32px 20px;
+  }
+  .heroKicker {
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+  .heroTitle {
+    font-size: 38px;
+    letter-spacing: -1px;
+    margin-bottom: 24px;
+  }
+  .heroSub {
+    font-size: 14px;
+  }
+  /* let the two CTAs wrap instead of overflowing */
+  .heroCtas {
+    flex-wrap: wrap;
+  }
+  .diagram {
+    max-width: 100%;
+  }
+
+  .section {
+    padding: 32px 20px;
+  }
+  .footer {
+    padding: 32px 20px 28px;
+  }
+  .sectionTitle {
+    font-size: 26px;
+  }
+  /* stack the proof header so the meta line doesn't collide with the title */
+  .proofHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  /* ----- cleared shipments: grid -> stacked cards ----- */
+  .tableHead {
+    display: none;
+  }
+  .tableRow {
+    display: block;
+    border: 1px solid rgba(237, 230, 214, 0.12);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .tableRowLast {
+    margin-bottom: 0;
+  }
+  .tableRow span {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 5px 0;
+    text-align: left;
+  }
+  /* row-label from data-label, so each card is self-describing */
+  .tableRow span::before {
+    content: attr(data-label);
+    color: rgba(237, 230, 214, 0.45);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .cellStatus {
+    text-align: left;
+  }
+
+  /* ----- architecture steps: 3-col grid -> stacked ----- */
+  .step {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 18px 0;
+  }
+
+  /* ----- sdk code block: smaller type, still horizontally scrollable ----- */
+  .sdkCardHead {
+    font-size: 10px;
+    padding: 10px 14px;
+  }
+  .code {
+    font-size: 11px;
+    padding: 16px 16px;
+  }
+
+  /* ----- footer stats: 3-col -> single column ----- */
+  .stats {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .statNum {
+    font-size: 28px;
+  }
+  .footerLegal {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding-top: 24px;
+  }
 }

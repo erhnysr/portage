@@ -61,15 +61,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* route diagram */}
+            {/* route diagram — everything lives inside the SVG viewBox so the wordmark, nodes
+                and chain labels scale together and stay aligned at any container width */}
             <div className={styles.diagram}>
-              <div className={styles.diagramWord}>ARC</div>
               <svg
                 viewBox="0 0 340 240"
                 width="100%"
                 height="100%"
+                preserveAspectRatio="xMidYMid meet"
                 className={styles.diagramSvg}
               >
+                <text x="220" y="120" textAnchor="middle" dominantBaseline="central" className={styles.diagramWord}>
+                  ARC
+                </text>
                 <line x1="60" y1="30" x2="220" y2="120" stroke="#4C7D77" strokeWidth="1.2" className="p-flow" />
                 <line x1="60" y1="120" x2="220" y2="120" stroke="#4C7D77" strokeWidth="1.2" className="p-flow" />
                 <line x1="60" y1="210" x2="220" y2="120" stroke="#4C7D77" strokeWidth="1.2" className="p-flow" />
@@ -78,16 +82,10 @@ export default function Home() {
                 <circle cx="60" cy="210" r="6" fill="#1C1730" stroke="#4C7D77" strokeWidth="1.5" className="p-node" style={{ animationDelay: "1s" }} />
                 <circle cx="220" cy="120" r="15" fill="#1C1730" stroke="#7C6FE0" strokeWidth="2" />
                 <circle cx="220" cy="120" r="4" fill="#7C6FE0" className="p-node" />
+                <text x="76" y="24" className={styles.diagramLabel}>BASE</text>
+                <text x="76" y="114" className={styles.diagramLabel}>ETHEREUM</text>
+                <text x="76" y="204" className={styles.diagramLabel}>ARBITRUM</text>
               </svg>
-              <div className={styles.diagramLabel} style={{ left: 76, top: 14 }}>
-                BASE
-              </div>
-              <div className={styles.diagramLabel} style={{ left: 76, top: 104 }}>
-                ETHEREUM
-              </div>
-              <div className={styles.diagramLabel} style={{ left: 76, top: 194 }}>
-                ARBITRUM
-              </div>
             </div>
           </div>
         </div>
@@ -113,25 +111,25 @@ export default function Home() {
           </div>
 
           <div className={`${styles.row} ${styles.tableRow}`}>
-            <span className={styles.cellWaybill}>0xf1aa545e — spec hash</span>
-            <span className={styles.cellRoute}>SPEC → ARC</span>
-            <span>—</span>
-            <span className={styles.cellConsignee}>Payout spec commitment</span>
-            <span className={styles.cellStatus}>CLEARED</span>
+            <span className={styles.cellWaybill} data-label="Waybill">0xf1aa545e — spec hash</span>
+            <span className={styles.cellRoute} data-label="Route">SPEC → ARC</span>
+            <span data-label="Cargo">—</span>
+            <span className={styles.cellConsignee} data-label="Consignee">Payout spec commitment</span>
+            <span className={styles.cellStatus} data-label="Status">CLEARED</span>
           </div>
           <div className={`${styles.row} ${styles.tableRow}`}>
-            <span className={styles.cellWaybill}>0x2a3f0411 — mint tx</span>
-            <span className={styles.cellRoute}>GATEWAY → ARC</span>
-            <span>Consolidated USDC</span>
-            <span className={styles.cellConsignee}>executeMintWithMeta</span>
-            <span className={styles.cellStatus}>CLEARED</span>
+            <span className={styles.cellWaybill} data-label="Waybill">0x2a3f0411 — mint tx</span>
+            <span className={styles.cellRoute} data-label="Route">GATEWAY → ARC</span>
+            <span data-label="Cargo">Consolidated USDC</span>
+            <span className={styles.cellConsignee} data-label="Consignee">executeMintWithMeta</span>
+            <span className={styles.cellStatus} data-label="Status">CLEARED</span>
           </div>
           <div className={`${styles.row} ${styles.tableRow} ${styles.tableRowLast}`}>
-            <span className={styles.cellWaybill}>0x92c99b39 — deploy tx</span>
-            <span className={styles.cellRoute}>ARC MAINNET</span>
-            <span>Contract deploy</span>
-            <span className={styles.cellConsignee}>Portage clearinghouse</span>
-            <span className={styles.cellStatus}>CLEARED</span>
+            <span className={styles.cellWaybill} data-label="Waybill">0x92c99b39 — deploy tx</span>
+            <span className={styles.cellRoute} data-label="Route">ARC MAINNET</span>
+            <span data-label="Cargo">Contract deploy</span>
+            <span className={styles.cellConsignee} data-label="Consignee">Portage clearinghouse</span>
+            <span className={styles.cellStatus} data-label="Status">CLEARED</span>
           </div>
         </div>
       </section>
