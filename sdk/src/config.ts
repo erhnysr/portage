@@ -21,7 +21,8 @@ export const PORTAGE_ARC_TESTNET = {
   ledger: "0xEEc603760483B0689B76fb3780eE7edc2E1661b4" as Address,
   payoutEngine: "0xA9Ebe9fC146F6Bdb2FF5A688017eb496C56F66e0" as Address,
   router: "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B" as Address,
-  mintForwarder: "0x07226E6163B3128b805774F73D26854a4de3661A" as Address,
+  // Redeployed 2026-07-21 with the B1 change (executeMintWithMeta/hashMetaBinding); Router rewired.
+  mintForwarder: "0x65473aF9a6006C20C100F6dBA174657b8D88aaed" as Address,
 } as const;
 
 /** Supported source chains for consolidation (CCTP/Gateway domains + local USDC). */

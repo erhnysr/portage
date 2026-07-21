@@ -61,7 +61,12 @@ PayoutEngine.ledger, Forwarder.router, Forwarder.gatewayMinter).
 | Ledger | `0xEEc603760483B0689B76fb3780eE7edc2E1661b4` |
 | PayoutEngine | `0xA9Ebe9fC146F6Bdb2FF5A688017eb496C56F66e0` |
 | PortageRouter | `0x9eacb164e5B9D3D24b1A87437668B2245169eD4B` |
-| PortageMintForwarder | `0x07226E6163B3128b805774F73D26854a4de3661A` |
+| PortageMintForwarder | `0x65473aF9a6006C20C100F6dBA174657b8D88aaed` |
+
+> PortageMintForwarder was redeployed 2026-07-21 for the B1 change (`executeMintWithMeta` /
+> `hashMetaBinding` / EIP712) via `script/DeployForwarder.s.sol`, which also rewired
+> `router.setForwarder`. The original forwarder `0x07226E6163B3128b805774F73D26854a4de3661A`
+> (executeMint-only, pre-B1) is dead. Core + Router unchanged.
 
 Not yet done: no app registered (`registry.registerApp(...)`), no guardian set.
 
