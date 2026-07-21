@@ -239,6 +239,17 @@
 .headRight {
   text-align: right;
 }
+/* linked tx hashes: keep the cell color, add a subtle dotted underline as a clickable cue */
+.txLink {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(237, 230, 214, 0.4);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.txLink:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
 
 /* ---------- how a shipment clears ---------- */
 .steps {
