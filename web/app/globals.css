@@ -1,0 +1,66 @@
+/* Portage design tokens (from design-reference/portage-landing.html) */
+:root {
+  --bg: #1c1730;
+  --accent: #7c6fe0;
+  --route: #4c7d77;
+  --text: #ede6d6;
+
+  /* font families are provided by next/font (see layout.tsx) */
+  --font-serif: var(--font-zilla), serif;
+  --font-sans: var(--font-plex-sans), sans-serif;
+  --font-mono: var(--font-plex-mono), monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--text);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* animations preserved verbatim from the design */
+@keyframes portage-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes portage-flow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+.p-node {
+  animation: portage-pulse 2.2s ease-in-out infinite;
+}
+.p-flow {
+  stroke-dasharray: 5 6;
+  animation: portage-flow 1.1s linear infinite;
+}
+.p-texture {
+  background-image: radial-gradient(rgba(237, 230, 214, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
