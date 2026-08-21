@@ -143,13 +143,13 @@ uint256 private custodyTotal;                         // Σ appTotal, must == US
 
 // Only PortageRouter (registered) may credit; only PayoutEngine may debit.
 function credit(bytes32 appId, bytes32 account, uint256 amount, bytes32 transferId) external; // onlyRouter
-function debit (bytes32 appId, bytes32 account, uint256 amount) external returns (bool);       // onlyPayoutEngine
+function debit (bytes32 appId, bytes32 account, uint256 amount, address to) external;          // onlyPayoutEngine (pushes USDC to `to`)
 
 function balanceOf(bytes32 appId, bytes32 account) external view returns (uint256);
 function appBalance(bytes32 appId) external view returns (uint256);
 ```
 
-**Invariant (checked on every mutation):** `custodyTotal == Σ appTotal[app]` and `appTotal[app] == Σ balances[app][account]`. A violation reverts. This is the mathematical guarantee of app isolation.
+**Invariant (maintained by construction):** `custodyTotal == Σ appTotal[app]` and `appTotal[app] == Σ balances[app][account]`. `credit` and `debit` update the per-account balance, its `appTotal`, and `custodyTotal` in lockstep, so the equalities hold after every mutation without an explicit runtime check. They are verified continuously by the Foundry fuzz invariant tests (§7). This is the mathematical guarantee of app isolation.
 
 #### PayoutEngine — debit + release (on demand)
 
@@ -216,9 +216,13 @@ function credit(bytes calldata hookData, uint256 mintedValue, bytes32 specHash) 
 
 `hookData` decodes to `PayoutMeta` (see §4). Credited amount = the `value` field of the just-minted attestation (equivalently the Router's USDC balance delta), never a relayer-supplied number. Router forwards the USDC into Core and calls `Ledger.credit(appId, account, mintedValue, specHash)`.
 
-> **Fallback (kept for resilience):** if the atomic forwarder path is unavailable (e.g. a mint was submitted directly to the Router out-of-band), a `settle(bytes32 specHash, bytes hookData)` on the Router can still credit based on the Router's unattributed USDC balance delta, gated `onlyRelayer` + idempotent on `specHash`. This is the degraded path, not the primary one.
+### 3.3 Adapters (IConsolidationAdapter) — NOT BUILT (deferred to v0.2+)
 
-### 3.3 Adapters (IConsolidationAdapter)
+> **Status: design sketch, not in the v0.1 codebase.** No `IConsolidationAdapter`, `GatewayAdapter`,
+> or `initiateOutbound` exists in `contracts/`. v0.1 inbound consolidation is handled directly by
+> `PortageMintForwarder` + `PortageRouter` (§3.2), with no adapter indirection. The interface below is
+> retained as the intended abstraction for outbound cross-chain payouts, which land in v0.2+ (see §10
+> out-of-scope).
 
 ```solidity
 interface IConsolidationAdapter {
@@ -234,7 +238,7 @@ interface IConsolidationAdapter {
 }
 ```
 
-`GatewayAdapter` wraps deposit-to-GatewayWallet + burn-intent submission for outbound payouts. New protocols slot in without touching Core.
+Once built, `GatewayAdapter` would wrap deposit-to-GatewayWallet + burn-intent submission for outbound payouts, letting new protocols slot in without touching Core.
 
 ### 3.4 External (not ours) — Circle contracts, same address cross-chain
 
@@ -346,12 +350,11 @@ Status legend: **[built]** = implemented + tested in v0.1 Core; **[periphery]** 
 | Ledger | `mapping(bytes32 appId => uint256) totalCredited` + `totalPaid` | lifetime reconciliation counters (moved here from `AppConfig`) | per-app, audit-only | **[built]** |
 | Ledger | `mapping(bytes32 transferId => bool) creditProcessed` | inbound idempotency (credit-once per Gateway spec hash) | prevents double-credit | **[built]** |
 | PayoutEngine | `mapping(bytes32 appId => mapping(bytes32 referenceId => bool)) settled` | outbound idempotency | prevents double-pay / replay | **[built]** |
-| Router | `mapping(bytes32 specHash => bool) processed` | inbound idempotency at the mint landing zone (defense-in-depth over Ledger's own guard) | prevents double-credit | **[built]** |
 | Router | `mapping(bytes32 specHash => uint256) quarantined` + `uint256 quarantinedTotal` | unmatched/malformed deposits held pending governor recovery | recoverable, never mis-credited | **[built]** |
 
 All app-scoped maps are keyed by `appId` first — there is no global mutable balance that any single app can touch.
 
-> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`), not only in the Router as the original draft suggested. This makes credit-once hold independently of the periphery — the Router's own `processed` map (when built) becomes defense-in-depth rather than the sole guard. The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router routes those (plus malformed-hookData deposits) to quarantine instead of ever calling `credit` — so the atomic mint still completes and funds are captured, never mis-credited or stranded.
+> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`), not in the Router as the original draft suggested. The Router carries no `processed` map — credit-once at the mint landing zone is provided by `gatewayMint`'s own `specHash` replay guard (a resubmit reverts before `credit` is reached), with the Ledger's `creditProcessed` as the independent second guard (see threat T1). The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router routes those (plus malformed-hookData deposits) to quarantine instead of ever calling `credit` — so the atomic mint still completes and funds are captured, never mis-credited or stranded.
 
 ---
 
@@ -361,7 +364,7 @@ All app-scoped maps are keyed by `appId` first — there is no global mutable ba
 
 | # | Threat | Mitigation |
 |---|---|---|
-| T1 | **Replay / double-credit** of an attestation (resubmit mint) | `Router.processed[transferId]` one-shot; credit only on first sight |
+| T1 | **Replay / double-credit** of an attestation (resubmit mint) | Two independent guards: (a) `gatewayMint` marks the `specHash` used and reverts a resubmit (Mints.sol:335) *before* control ever reaches `credit`; (b) the Ledger records each `transferId` in `creditProcessed` and rejects a second credit for the same spec. Credit therefore happens at most once even if the mint path were somehow re-entered |
 | T2 | **Inflated credit** via forged/oversized hookData amount | Credit uses the `value` from the just-minted signed spec (= Router balance delta), never a relayer-supplied number |
 | T3 | **hookData tampering** in flight | hookData is inside the Circle-signed `TransferSpec` and is folded into `specHash` (TransferSpecLib.sol:481); any edit invalidates the attestation signature and reverts `gatewayMint` |
 | T4 | **Orphaned mint / front-run** (someone calls `gatewayMint` directly, USDC lands on Router uncredited) | Burn intent sets `destinationCaller = PortageMintForwarder`; Circle's minter enforces `destinationCaller == msg.sender` (Mints.sol:296), so only the forwarder can mint — and it credits atomically. Degraded `settle` path stays idempotent on `specHash` |
@@ -386,10 +389,17 @@ All app-scoped maps are keyed by `appId` first — there is no global mutable ba
 
 ### Invariants (must hold at all times)
 
-1. `USDC.balanceOf(Core) >= custodyTotal` (Core is always solvent for what it owes apps).
-2. `custodyTotal == Σ_app appTotal[app]`.
-3. `appTotal[app] == Σ_account balances[app][account]`.
+Maintained by construction in the Ledger/Router and verified continuously by Foundry fuzz invariant
+tests (256 runs × 128 depth). The test function enforcing each one is named in parentheses.
+
+1. `USDC.balanceOf(Core) >= custodyTotal` — Core is always solvent for what it owes apps (`invariant_solvency`).
+2. `custodyTotal == Σ_app appTotal[app]` (`invariant_custodyEqualsSumOfApps`).
+3. `appTotal[app] == Σ_account balances[app][account]` (`invariant_appTotalEqualsSumOfAccounts`, `invariant_perAccountMatchesGhost`).
 4. No state transition moves value from `balances[appA]` to `balances[appB]`.
+5. Conservation across the periphery: `custodyTotal + quarantinedTotal == Σ minted` — every minted USDC unit is either credited to an app or held in quarantine, never lost or double-counted (`invariant_conservation`).
+6. Router holds no attributable funds at rest: its USDC balance equals `quarantinedTotal` (`invariant_custodyAndRouterBalances`).
+7. Lifetime counters reconcile: per-app `totalCredited` / `totalPaid` stay consistent with the balances they derive from (`invariant_lifetimeCountersReconcile`).
+8. Payments reconcile: the total debited from the Ledger equals the total released to payout recipients (`invariant_paymentsReconcile`).
 
 ---
 
@@ -469,9 +479,8 @@ Coliseum is registered once via `AppRegistry.registerApp(keccak("coliseum"), own
 
 ### In scope (v0.1)
 
-- Arc Testnet deployment of `PortageCore` (AppRegistry + Ledger + PayoutEngine) + `PortageRouter`.
-- `GatewayAdapter` implementing `IConsolidationAdapter` (inbound consolidation).
-- **Inbound:** Base Sepolia → Arc consolidation with `hookData`/`PayoutMeta` v1.
+- Arc Testnet deployment of `PortageCore` (AppRegistry + Ledger + PayoutEngine) + `PortageRouter` + `PortageMintForwarder`.
+- **Inbound:** Base Sepolia → Arc consolidation driven directly by `PortageMintForwarder` + `PortageRouter` (no adapter layer), with `PayoutMeta` v1.
 - **Outbound:** same-chain (Arc) payouts + batch `distribute`.
 - Non-custodial client signing (wagmi/viem EIP-712 burn intents).
 - Mandatory gas pre-flight on Arc before mint.
@@ -483,6 +492,7 @@ Coliseum is registered once via `AppRegistry.registerApp(keccak("coliseum"), own
 
 ### Out of scope (deferred)
 
+- **The `IConsolidationAdapter` / `GatewayAdapter` abstraction** (§3.3) — not built in v0.1; inbound is handled directly by the Forwarder + Router. The adapter layer arrives with outbound cross-chain payouts.
 - **Cross-chain outbound payouts** (Arc → Base/other). Requires Core-controlled outbound signing design.
 - Additional source chains beyond Base Sepolia (Ethereum/Arbitrum Sepolia are easy adds — same domain model — but not in v0.1 test matrix).
 - **Raw CCTP adapter** (`CctpAdapter`) — interface reserved, not built.
@@ -497,7 +507,7 @@ Coliseum is registered once via `AppRegistry.registerApp(keccak("coliseum"), own
 
 1. A Base Sepolia deposit lands as a correct, isolated credit in `balances[coliseum][arenaId]` on Arc.
 2. `distribute` pays multiple winners on Arc, debiting only Coliseum's balance, with replay protection.
-3. All four invariants (§7) hold across a full deposit→payout cycle under test.
+3. All invariants (§7) hold across a full deposit→payout cycle under test.
 4. Relayer failure/restart never double-credits or double-pays (idempotency proven).
 
 ---
