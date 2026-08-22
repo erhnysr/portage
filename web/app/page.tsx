@@ -1,6 +1,14 @@
 import styles from "./page.module.css";
+import { getShipments } from "../lib/shipments";
+import { ARC_EXPLORER_ADDRESS, ARC_EXPLORER_TX, ROUTER_ADDRESS, short } from "../lib/portage";
 
-export default function Home() {
+// Revalidate the on-chain manifest at most once per minute (ISR). Between revalidations
+// every visitor is served cached HTML; the windowed getLogs scan runs server-side only.
+export const revalidate = 60;
+
+export default async function Home() {
+  const shipments = await getShipments();
+
   return (
     <div className={`${styles.page} p-texture`}>
       {/* ---------- nav ---------- */}
@@ -110,53 +118,60 @@ export default function Home() {
             <span className={styles.headRight}>Status</span>
           </div>
 
-          <div className={`${styles.row} ${styles.tableRow}`}>
-            {/* spec hash is an on-chain EIP-712 TransferSpec commitment, not a tx/address — no
-                explorer page exists for it, so it is shown but intentionally not linked */}
-            <span
-              className={styles.cellWaybill}
-              data-label="Waybill"
-              title="TransferSpec hash (EIP-712 commitment) — emitted on-chain, but not a linkable tx/address"
-            >
-              0xf1aa545e — spec hash
-            </span>
-            <span className={styles.cellRoute} data-label="Route">SPEC → ARC</span>
-            <span data-label="Cargo">—</span>
-            <span className={styles.cellConsignee} data-label="Consignee">Payout spec commitment</span>
-            <span className={styles.cellStatus} data-label="Status">CLEARED</span>
-          </div>
-          <div className={`${styles.row} ${styles.tableRow}`}>
-            <span className={styles.cellWaybill} data-label="Waybill">
-              <a
-                className={styles.txLink}
-                href="https://testnet.arcscan.app/tx/0x2a3f04110f614c0b65938560e236583de48523ecacd05cbf595b14c244e7d056"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                0x2a3f0411 — mint tx
-              </a>
-            </span>
-            <span className={styles.cellRoute} data-label="Route">GATEWAY → ARC</span>
-            <span data-label="Cargo">Consolidated USDC</span>
-            <span className={styles.cellConsignee} data-label="Consignee">executeMintWithMeta</span>
-            <span className={styles.cellStatus} data-label="Status">CLEARED</span>
-          </div>
-          <div className={`${styles.row} ${styles.tableRow} ${styles.tableRowLast}`}>
-            <span className={styles.cellWaybill} data-label="Waybill">
-              <a
-                className={styles.txLink}
-                href="https://testnet.arcscan.app/tx/0x821a1b4a4857872a8e23b00eabd63acec0c5c7a2fc6be2735851a45713ca969e"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                0x821a1b4a — deploy tx
-              </a>
-            </span>
-            <span className={styles.cellRoute} data-label="Route">ARC TESTNET</span>
-            <span data-label="Cargo">Contract deploy</span>
-            <span className={styles.cellConsignee} data-label="Consignee">Portage clearinghouse</span>
-            <span className={styles.cellStatus} data-label="Status">CLEARED</span>
-          </div>
+          {!shipments.ok ? (
+            <div className={`${styles.row} ${styles.tableRow} ${styles.tableRowLast} ${styles.tableNotice}`}>
+              <span className={styles.noticeSpan}>
+                Live manifest temporarily unavailable — read the Router directly on{" "}
+                <a
+                  className={styles.txLink}
+                  href={`${ARC_EXPLORER_ADDRESS}${ROUTER_ADDRESS}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Arcscan
+                </a>
+                .
+              </span>
+            </div>
+          ) : shipments.shipments.length === 0 ? (
+            <div className={`${styles.row} ${styles.tableRow} ${styles.tableRowLast} ${styles.tableNotice}`}>
+              <span className={styles.noticeSpan}>
+                No cleared shipments yet — this table populates from on-chain{" "}
+                <code>Credited</code> events on the Router.
+              </span>
+            </div>
+          ) : (
+            shipments.shipments.map((s, i) => {
+              const last = i === shipments.shipments.length - 1;
+              const held = s.status === "held";
+              return (
+                <div
+                  key={`${s.txHash}-${i}`}
+                  className={`${styles.row} ${styles.tableRow}${last ? ` ${styles.tableRowLast}` : ""}`}
+                >
+                  <span className={styles.cellWaybill} data-label="Waybill">
+                    <a
+                      className={styles.txLink}
+                      href={`${ARC_EXPLORER_TX}${s.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {short(s.txHash)} — tx
+                    </a>
+                  </span>
+                  <span className={styles.cellRoute} data-label="Route">{s.route}</span>
+                  <span data-label="Cargo">{s.cargo}</span>
+                  <span className={styles.cellConsignee} data-label="Consignee">{s.consignee}</span>
+                  <span
+                    className={`${styles.cellStatus}${held ? ` ${styles.statusHeld}` : ""}`}
+                    data-label="Status"
+                  >
+                    {held ? "HELD" : "CLEARED"}
+                  </span>
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
 

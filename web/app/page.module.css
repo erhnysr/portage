@@ -250,6 +250,18 @@
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
+/* quarantined (not cleared) rows: muted amber status to set them apart from CLEARED */
+.statusHeld {
+  color: #d9a441;
+}
+/* empty / error state: one full-width row inside the same table shell, no fake data */
+.tableNotice {
+  padding: 20px 0;
+}
+.noticeSpan {
+  grid-column: 1 / -1;
+  color: rgba(237, 230, 214, 0.55);
+}
 
 /* ---------- how a shipment clears ---------- */
 .steps {
