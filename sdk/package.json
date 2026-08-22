@@ -1,7 +1,8 @@
 {
-  "name": "@portage/sdk",
+  "name": "@erhnysr/portage-sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for Portage — cross-chain USDC payout consolidation on Arc",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,9 +13,18 @@
     }
   },
   "files": ["dist"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erhnysr/portage.git",
+    "directory": "sdk"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "viem": "^2.44.0"

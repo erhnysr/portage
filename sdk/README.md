@@ -1,4 +1,4 @@
-# @portage/sdk
+# @erhnysr/portage-sdk
 
 TypeScript SDK for **Portage** — cross-chain USDC payout consolidation on Arc.
 
@@ -9,7 +9,7 @@ Two surfaces:
 Defaults target the Arc Testnet v0.1 deployment (see `PORTAGE_ARC_TESTNET`).
 
 ```bash
-npm install @portage/sdk viem
+npm install @erhnysr/portage-sdk viem
 ```
 
 ## Client: consolidate USDC from Base Sepolia into an app's balance on Arc
@@ -17,7 +17,7 @@ npm install @portage/sdk viem
 ```ts
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { arcTestnet, baseSepolia } from "./chains"; // your viem chain defs
-import { PortageClient, PayoutAction, appIdFromName, accountIdFromName } from "@portage/sdk";
+import { PortageClient, PayoutAction, appIdFromName, accountIdFromName } from "@erhnysr/portage-sdk";
 
 const arc = createPublicClient({ chain: arcTestnet, transport: http() });
 const portage = new PortageClient({ arcPublicClient: arc });
@@ -64,7 +64,7 @@ await portage.getUnifiedBalance(depositor);
 ```ts
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { PortagePayouts, appIdFromName, accountIdFromName } from "@portage/sdk";
+import { PortagePayouts, appIdFromName, accountIdFromName } from "@erhnysr/portage-sdk";
 
 const controller = privateKeyToAccount(process.env.COLISEUM_CONTROLLER_KEY as `0x${string}`);
 const wallet = createWalletClient({ chain: arcTestnet, transport: http(), account: controller });

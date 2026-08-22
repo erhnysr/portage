@@ -150,7 +150,7 @@ sole debitor, and the Forwarder as the Router's authorized crediter.
 
 ## SDK
 
-`@portage/sdk` (in `sdk/`) is a TypeScript SDK built on [viem](https://viem.sh). It is
+`@erhnysr/portage-sdk` (in `sdk/`) is a TypeScript SDK built on [viem](https://viem.sh). It is
 **not published to npm** — use it from source or as a workspace dependency, building it
 first:
 
