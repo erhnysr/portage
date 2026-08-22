@@ -4,6 +4,7 @@ import { createPublicClient, http, type Log } from "viem";
 import {
   CreditedEvent,
   QuarantinedEvent,
+  DEFAULT_ARC_RPC_URL,
   FLOOR_WINDOWS,
   LOG_WINDOW,
   MAX_ROWS,
@@ -33,9 +34,10 @@ export type ShipmentsResult =
   | { ok: false };
 
 function client() {
-  const rpcUrl = process.env.ARC_RPC_URL;
-  if (!rpcUrl) throw new Error("ARC_RPC_URL is not set");
-  // No `chain` needed for reads; transport carries the endpoint (with its secret key).
+  // ARC_RPC_URL (a dedicated key) overrides; otherwise fall back to the benchmarked
+  // keyless default so the manifest still renders without any env config.
+  const rpcUrl = process.env.ARC_RPC_URL || DEFAULT_ARC_RPC_URL;
+  // No `chain` needed for reads; transport carries the endpoint (with its key, if any).
   return createPublicClient({ transport: http(rpcUrl) });
 }
 
@@ -74,7 +76,11 @@ function toHeldShipment(log: QuarantinedLog): Shipment {
 
 type PublicClient = ReturnType<typeof client>;
 
-// Fetch both Router events for one <=10k-block window.
+// Fetch both Router events for one <=10k-block window, in parallel. Concurrency here is
+// fine on the default endpoint (drpc): measured against the full ~90-call workload it
+// completes in ~8-13s. Dropping to sequential was tested and gained nothing — the stricter
+// keyless endpoints (arc.io, quicknode) cap total request RATE, not just concurrency, so
+// they fail after 1-2 windows either way; sequential only doubled drpc's latency.
 async function fetchWindow(
   publicClient: PublicClient,
   fromBlock: bigint,

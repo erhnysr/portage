@@ -7,6 +7,17 @@ export const ARC_CHAIN_ID = 5042002;
 export const ARC_EXPLORER_TX = "https://testnet.arcscan.app/tx/";
 export const ARC_EXPLORER_ADDRESS = "https://testnet.arcscan.app/address/";
 
+// Default Arc testnet RPC when ARC_RPC_URL is not set. Set a dedicated key via env to
+// override (recommended for prod). Public keyless endpoints were benchmarked against the
+// full two-anchor workload (~90 getLogs, needs archive history back to the deploy era):
+//   - drpc      → the ONLY keyless endpoint that completes it (~8-13s). Chosen default.
+//   - arc.io    → full history, but caps request RATE; fails after ~2 windows keyless.
+//   - quicknode → full history, but caps request RATE; fails after ~1 window keyless.
+//   - blockdaemon → DISQUALIFIED: pruned node, returns code 4444 "pruned history
+//     unavailable" for deploy-era blocks. It cannot serve the floor anchor at all — do
+//     not use it here regardless of rate limits.
+export const DEFAULT_ARC_RPC_URL = "https://rpc.drpc.testnet.arc.io";
+
 // PortageRouter on Arc testnet. NOT redeployed since the original Deploy.s.sol run,
 // so its deploy block below is the correct floor for its event history.
 export const ROUTER_ADDRESS = "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B" as const;
