@@ -65,6 +65,16 @@ export function quarantineReasonLabel(reason: number): string {
   return QUARANTINE_REASON_LABELS[reason] ?? `Reason #${reason}`;
 }
 
+// Known appId (keccak256 of the app name) → display name. appId is opaque on-chain, so we
+// reverse-map the ones we know; anything else falls back to a short hash.
+export const APP_NAMES: Record<string, string> = {
+  "0xee1b38d84672bb4ae7bf6e6e779a54a05e94092183ce62aa3f5329094652e2b6": "coliseum",
+};
+
+export function appName(appId: string): string {
+  return APP_NAMES[appId.toLowerCase()] ?? short(appId);
+}
+
 // USDC is 6-decimal. Format an atomic amount as a short human string, e.g. "5.00".
 export function formatUsdc(atomic: bigint): string {
   const whole = atomic / 1_000_000n;

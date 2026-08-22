@@ -12,8 +12,10 @@ import {
   ROUTER_DEPLOY_BLOCK,
   TIP_WINDOWS,
   actionLabel,
+  appName,
   formatUsdc,
   quarantineReasonLabel,
+  short,
 } from "./portage";
 
 // A single manifest entry, already shaped for the table (no bigints leak to the client).
@@ -50,13 +52,25 @@ function idOf(log: { transactionHash: `0x${string}` | null; logIndex: number | n
 
 function toClearedShipment(log: CreditedLog): Shipment {
   const action = Number(log.args.action ?? 0);
+  // Cargo carries the amount plus the deposit's purpose (PayoutAction), so the action stays
+  // visible without pretending to be a consignee.
+  const cargo =
+    log.args.amount != null
+      ? `${formatUsdc(log.args.amount)} USDC · ${actionLabel(action)}`
+      : actionLabel(action);
+  // Consignee is who the deposit was credited to: the app (name-resolved where known) and
+  // its sub-account.
+  const consignee =
+    log.args.appId != null && log.args.account != null
+      ? `${appName(log.args.appId)} / ${short(log.args.account)}`
+      : "—";
   return {
     id: idOf(log),
     status: "cleared",
     txHash: log.transactionHash!,
     route: "GATEWAY → ARC",
-    cargo: log.args.amount != null ? `${formatUsdc(log.args.amount)} USDC` : "—",
-    consignee: actionLabel(action),
+    cargo,
+    consignee,
     blockNumber: (log.blockNumber ?? 0n).toString(),
   };
 }
