@@ -150,14 +150,10 @@ sole debitor, and the Forwarder as the Router's authorized crediter.
 
 ## SDK
 
-`@erhnysr/portage-sdk` (in `sdk/`) is a TypeScript SDK built on [viem](https://viem.sh). It is
-**not published to npm** — use it from source or as a workspace dependency, building it
-first:
+`@erhnysr/portage-sdk` (in `sdk/`) is a TypeScript SDK built on [viem](https://viem.sh):
 
 ```bash
-cd sdk
-npm install
-npm run build   # tsc → dist/
+npm install @erhnysr/portage-sdk viem
 ```
 
 It exposes two surfaces:
