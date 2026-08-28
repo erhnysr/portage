@@ -6,7 +6,10 @@ Two surfaces:
 - **`PortageClient`** — non-custodial client. Users sign burn intents with their own EOA (any viem `walletClient`); the SDK never holds keys.
 - **`PortagePayouts`** — server SDK for app backends. Authorizes payouts scoped to one `appId`, signed by that app's `payoutController`.
 
-Defaults target the Arc Testnet v0.1 deployment (see `PORTAGE_ARC_TESTNET`).
+Config is network-keyed: `getNetwork(name)` resolves all Arc/Gateway/Portage facts for a
+network, and both surfaces accept a `network?` option (defaults to `"arcTestnet"`). `"arcMainnet"`
+is reserved but PENDING until Circle publishes it — selecting it throws. The old flat exports
+(`ARC`, `GATEWAY`, `PORTAGE_ARC_TESTNET`, `SOURCE_CHAINS`) remain as deprecated Arc Testnet aliases.
 
 ```bash
 npm install @erhnysr/portage-sdk viem

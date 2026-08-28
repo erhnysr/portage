@@ -1,5 +1,5 @@
 import type { Account, Address, Hex, Hash, PublicClient, WalletClient } from "viem";
-import { PORTAGE_ARC_TESTNET } from "./config.js";
+import { getNetwork, type NetworkName } from "./config.js";
 import { payoutEngineAbi } from "./abis.js";
 
 export interface PortagePayoutsConfig {
@@ -7,7 +7,9 @@ export interface PortagePayoutsConfig {
   appId: Hex;
   /** Wallet client on Arc, signing as the app's registered payoutController. */
   walletClient: WalletClient;
-  /** PayoutEngine address; defaults to the Arc Testnet v0.1 deployment. */
+  /** Target network; defaults to Arc Testnet. Selecting an unpublished network throws. */
+  network?: NetworkName;
+  /** PayoutEngine address; defaults to the selected network's deployment. */
   payoutEngine?: Address;
   /** Optional Arc public client for settled() reads. */
   arcPublicClient?: PublicClient;
@@ -31,7 +33,7 @@ export class PortagePayouts {
   constructor(config: PortagePayoutsConfig) {
     this.appId = config.appId;
     this.wallet = config.walletClient;
-    this.payoutEngine = config.payoutEngine ?? PORTAGE_ARC_TESTNET.payoutEngine;
+    this.payoutEngine = config.payoutEngine ?? getNetwork(config.network).contracts.payoutEngine;
     this.arc = config.arcPublicClient;
   }
 
