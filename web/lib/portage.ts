@@ -3,29 +3,90 @@
 
 import { parseAbiItem } from "viem";
 
-export const ARC_CHAIN_ID = 5042002;
-export const ARC_EXPLORER_TX = "https://testnet.arcscan.app/tx/";
-export const ARC_EXPLORER_ADDRESS = "https://testnet.arcscan.app/address/";
+// --- Network-keyed config ---------------------------------------------------
+// Every chain-specific fact lives in one PortageNetwork, selected by NETWORK_NAME
+// (PORTAGE_NETWORK / NEXT_PUBLIC_PORTAGE_NETWORK env, default arcTestnet). Arc mainnet
+// is PENDING until Circle publishes its chainId / RPC / explorer / Router deployment —
+// do NOT guess those values; fill ARC_MAINNET in once they are official.
 
-// Default Arc testnet RPC when ARC_RPC_URL is not set. Set a dedicated key via env to
-// override (recommended for prod). Public keyless endpoints were benchmarked against the
-// full two-anchor workload (~90 getLogs, needs archive history back to the deploy era):
-//   - drpc      → the ONLY keyless endpoint that completes it (~8-13s). Chosen default.
-//   - arc.io    → full history, but caps request RATE; fails after ~2 windows keyless.
-//   - quicknode → full history, but caps request RATE; fails after ~1 window keyless.
-//   - blockdaemon → DISQUALIFIED: pruned node, returns code 4444 "pruned history
-//     unavailable" for deploy-era blocks. It cannot serve the floor anchor at all — do
-//     not use it here regardless of rate limits.
-export const DEFAULT_ARC_RPC_URL = "https://rpc.drpc.testnet.arc.io";
+export type NetworkName = "arcTestnet" | "arcMainnet";
 
-// PortageRouter on Arc testnet. NOT redeployed since the original Deploy.s.sol run,
-// so its deploy block below is the correct floor for its event history.
-export const ROUTER_ADDRESS = "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B" as const;
+/** Sentinel for a network whose values Circle has not published yet. */
+export const PENDING = null;
+export type Pending = typeof PENDING;
 
-// Floor for Credited / Quarantined logs: the Router emits nothing before it exists.
-// From the broadcast receipt of Router deploy tx 0xbd406aa3… (Arc testnet, chainId 5042002).
-// This is an immutable historical fact, hence a hardcoded constant rather than config/env.
-export const ROUTER_DEPLOY_BLOCK = 52667877n;
+export interface PortageNetwork {
+  chainId: number;
+  /** Blockscout explorer base for transactions, e.g. `${explorerTx}<hash>`. */
+  explorerTx: string;
+  /** Blockscout explorer base for addresses, e.g. `${explorerAddress}<addr>`. */
+  explorerAddress: string;
+  /** Fallback Arc RPC when ARC_RPC_URL is not set. */
+  defaultRpcUrl: string;
+  /** PortageRouter address on this network. */
+  router: `0x${string}`;
+  /** Block the Router was deployed at — the floor for its event history. */
+  routerDeployBlock: bigint;
+}
+
+const ARC_TESTNET: PortageNetwork = {
+  chainId: 5042002,
+  explorerTx: "https://testnet.arcscan.app/tx/",
+  explorerAddress: "https://testnet.arcscan.app/address/",
+  // Default Arc testnet RPC when ARC_RPC_URL is not set. Set a dedicated key via env to
+  // override (recommended for prod). Public keyless endpoints were benchmarked against the
+  // full two-anchor workload (~90 getLogs, needs archive history back to the deploy era):
+  //   - drpc      → the ONLY keyless endpoint that completes it (~8-13s). Chosen default.
+  //   - arc.io    → full history, but caps request RATE; fails after ~2 windows keyless.
+  //   - quicknode → full history, but caps request RATE; fails after ~1 window keyless.
+  //   - blockdaemon → DISQUALIFIED: pruned node, returns code 4444 "pruned history
+  //     unavailable" for deploy-era blocks. It cannot serve the floor anchor at all — do
+  //     not use it here regardless of rate limits.
+  defaultRpcUrl: "https://rpc.drpc.testnet.arc.io",
+  // PortageRouter on Arc testnet. NOT redeployed since the original Deploy.s.sol run,
+  // so its deploy block below is the correct floor for its event history.
+  router: "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B",
+  // Floor for Credited / Quarantined logs: the Router emits nothing before it exists.
+  // From the broadcast receipt of Router deploy tx 0xbd406aa3… (Arc testnet, chainId 5042002).
+  // This is an immutable historical fact, hence a hardcoded constant rather than config/env.
+  routerDeployBlock: 52667877n,
+};
+
+// Arc mainnet not yet published by Circle — chainId / RPC / explorer / Router all TBD.
+export const NETWORKS: Record<NetworkName, PortageNetwork | Pending> = {
+  arcTestnet: ARC_TESTNET,
+  arcMainnet: PENDING,
+};
+
+function selectedNetworkName(): NetworkName {
+  const raw = process.env.NEXT_PUBLIC_PORTAGE_NETWORK ?? process.env.PORTAGE_NETWORK;
+  return raw === "arcMainnet" ? "arcMainnet" : "arcTestnet";
+}
+
+export const NETWORK_NAME: NetworkName = selectedNetworkName();
+
+/** Resolve a network's config. Throws for networks whose values are not yet published. */
+export function getNetwork(name: NetworkName = NETWORK_NAME): PortageNetwork {
+  const net = NETWORKS[name];
+  if (net === PENDING) {
+    throw new Error(
+      `Portage network "${name}" is not available yet — Circle has not published Arc mainnet's ` +
+        `chainId, RPC, explorer, or Router deployment. Populate NETWORKS.${name} in lib/portage.ts once official.`,
+    );
+  }
+  return net;
+}
+
+/** The active network for this deployment. */
+export const NETWORK = getNetwork();
+
+// Backward-compatible named exports, sourced from the active network.
+export const ARC_CHAIN_ID = NETWORK.chainId;
+export const ARC_EXPLORER_TX = NETWORK.explorerTx;
+export const ARC_EXPLORER_ADDRESS = NETWORK.explorerAddress;
+export const DEFAULT_ARC_RPC_URL = NETWORK.defaultRpcUrl;
+export const ROUTER_ADDRESS = NETWORK.router;
+export const ROUTER_DEPLOY_BLOCK = NETWORK.routerDeployBlock;
 
 // eth_getLogs window: Arc RPC rejects ranges wider than ~10k blocks, so we page.
 export const LOG_WINDOW = 10000n;

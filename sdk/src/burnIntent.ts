@@ -1,5 +1,11 @@
 import { pad, toHex, maxUint256, encodePacked, keccak256, type Address, type Hex } from "viem";
-import { ARC, GATEWAY, sourceChainDomain, sourceChainUsdc, type SourceChain } from "./config.js";
+import {
+  getNetwork,
+  sourceChainDomain,
+  sourceChainUsdc,
+  type NetworkConfig,
+  type SourceChain,
+} from "./config.js";
 
 /** EIP-712 domain used by Circle's GatewayWallet for burn intents (name + version only). */
 export const GATEWAY_EIP712_DOMAIN = { name: "GatewayWallet", version: "1" } as const;
@@ -85,6 +91,8 @@ export interface BuildConsolidationParams {
   salt?: Hex;
   maxFee?: bigint;
   maxBlockHeight?: bigint;
+  /** Network whose Arc/Gateway/source-chain facts to use; defaults to Arc Testnet. */
+  network?: NetworkConfig;
 }
 
 function addressToBytes32(address: Address): Hex {
@@ -113,15 +121,16 @@ function defaultMaxFee(amount: bigint): bigint {
 export function buildConsolidationIntent(params: BuildConsolidationParams): ConsolidationIntent {
   const salt = params.salt ?? randomSalt();
   const signer = params.signer ?? params.depositor;
+  const net = params.network ?? getNetwork();
 
   const spec: TransferSpecMessage = {
     version: 1,
-    sourceDomain: sourceChainDomain(params.sourceChain),
-    destinationDomain: ARC.domain,
-    sourceContract: addressToBytes32(GATEWAY.wallet),
-    destinationContract: addressToBytes32(GATEWAY.minter),
-    sourceToken: addressToBytes32(sourceChainUsdc(params.sourceChain)),
-    destinationToken: addressToBytes32(ARC.usdc),
+    sourceDomain: sourceChainDomain(params.sourceChain, net),
+    destinationDomain: net.arc.domain,
+    sourceContract: addressToBytes32(net.gateway.wallet),
+    destinationContract: addressToBytes32(net.gateway.minter),
+    sourceToken: addressToBytes32(sourceChainUsdc(params.sourceChain, net)),
+    destinationToken: addressToBytes32(net.arc.usdc),
     sourceDepositor: addressToBytes32(params.depositor),
     destinationRecipient: addressToBytes32(params.router),
     sourceSigner: addressToBytes32(signer),

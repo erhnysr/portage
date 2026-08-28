@@ -8,7 +8,13 @@ import {
   type PublicClient,
   type WalletClient,
 } from "viem";
-import { ARC, GATEWAY, PORTAGE_ARC_TESTNET, SOURCE_CHAINS, sourceChainUsdc, type SourceChain } from "./config.js";
+import {
+  getNetwork,
+  sourceChainUsdc,
+  type NetworkConfig,
+  type NetworkName,
+  type SourceChain,
+} from "./config.js";
 import { gatewayWalletAbi, ledgerAbi, mintForwarderAbi } from "./abis.js";
 import { GatewayApi, type GatewayBalances } from "./gatewayApi.js";
 import {
@@ -39,11 +45,13 @@ export interface PortageContracts {
 }
 
 export interface PortageClientConfig {
-  /** Public client connected to Arc Testnet (for ledger reads / executeMint). */
+  /** Public client connected to the network's Arc chain (for ledger reads / executeMint). */
   arcPublicClient: PublicClient;
-  /** Portage contract addresses; defaults to the Arc Testnet v0.1 deployment. */
+  /** Target network; defaults to Arc Testnet. Selecting an unpublished network throws. */
+  network?: NetworkName;
+  /** Portage contract addresses; default to the selected network's deployment. */
   contracts?: Partial<PortageContracts>;
-  /** Gateway HTTP API client; defaults to the testnet endpoint. */
+  /** Gateway HTTP API client; defaults to the selected network's endpoint. */
   gatewayApi?: GatewayApi;
 }
 
@@ -58,18 +66,20 @@ function requireAccount(wc: WalletClient): Account {
  * plus balance reads.
  */
 export class PortageClient {
+  readonly network: NetworkConfig;
   readonly contracts: PortageContracts;
   readonly gatewayApi: GatewayApi;
   private readonly arc: PublicClient;
 
   constructor(config: PortageClientConfig) {
     this.arc = config.arcPublicClient;
+    this.network = getNetwork(config.network);
     this.contracts = {
-      router: config.contracts?.router ?? PORTAGE_ARC_TESTNET.router,
-      forwarder: config.contracts?.forwarder ?? PORTAGE_ARC_TESTNET.mintForwarder,
-      ledger: config.contracts?.ledger ?? PORTAGE_ARC_TESTNET.ledger,
+      router: config.contracts?.router ?? this.network.contracts.router,
+      forwarder: config.contracts?.forwarder ?? this.network.contracts.mintForwarder,
+      ledger: config.contracts?.ledger ?? this.network.contracts.ledger,
     };
-    this.gatewayApi = config.gatewayApi ?? new GatewayApi();
+    this.gatewayApi = config.gatewayApi ?? new GatewayApi(this.network.gateway.api);
   }
 
   // ------------------------------------------------------------------
@@ -81,10 +91,10 @@ export class PortageClient {
    */
   async approveGateway(walletClient: WalletClient, params: { chain: SourceChain; amount: bigint }): Promise<Hash> {
     return walletClient.writeContract({
-      address: sourceChainUsdc(params.chain),
+      address: sourceChainUsdc(params.chain, this.network),
       abi: erc20Abi,
       functionName: "approve",
-      args: [GATEWAY.wallet, params.amount],
+      args: [this.network.gateway.wallet, params.amount],
       account: requireAccount(walletClient),
       chain: walletClient.chain,
     });
@@ -93,10 +103,10 @@ export class PortageClient {
   /** Deposit USDC into the GatewayWallet (adds to the unified balance). Approve first. */
   async depositToGateway(walletClient: WalletClient, params: { chain: SourceChain; amount: bigint }): Promise<Hash> {
     return walletClient.writeContract({
-      address: GATEWAY.wallet,
+      address: this.network.gateway.wallet,
       abi: gatewayWalletAbi,
       functionName: "deposit",
-      args: [sourceChainUsdc(params.chain), params.amount],
+      args: [sourceChainUsdc(params.chain, this.network), params.amount],
       account: requireAccount(walletClient),
       chain: walletClient.chain,
     });
@@ -121,9 +131,9 @@ export class PortageClient {
       if (receipt.status !== "success") throw new Error(`approve tx reverted: ${approveTx}`);
       await this.waitForAllowance(
         params.sourcePublicClient,
-        sourceChainUsdc(params.chain),
+        sourceChainUsdc(params.chain, this.network),
         owner,
-        GATEWAY.wallet,
+        this.network.gateway.wallet,
         params.amount,
       );
     }
@@ -160,11 +170,16 @@ export class PortageClient {
   // Consolidation (burn intent → attestation → mint on Arc)
   // ------------------------------------------------------------------
 
-  /** Build the EIP-712 consolidation intent, injecting this client's router/forwarder addresses. */
+  /** Build the EIP-712 consolidation intent, injecting this client's network + router/forwarder. */
   buildConsolidationIntent(
-    params: Omit<BuildConsolidationParams, "router" | "forwarder">,
+    params: Omit<BuildConsolidationParams, "router" | "forwarder" | "network">,
   ): ConsolidationIntent {
-    return buildIntent({ ...params, router: this.contracts.router, forwarder: this.contracts.forwarder });
+    return buildIntent({
+      ...params,
+      network: this.network,
+      router: this.contracts.router,
+      forwarder: this.contracts.forwarder,
+    });
   }
 
   /** The Gateway spec hash for an intent — the id PayoutMeta is bound to (computed off-chain). */
@@ -183,7 +198,7 @@ export class PortageClient {
       domain: {
         name: "Portage",
         version: "1",
-        chainId: ARC.chainId,
+        chainId: this.network.arc.chainId,
         verifyingContract: this.contracts.forwarder,
       },
       types: META_BINDING_TYPES,
@@ -266,8 +281,8 @@ export class PortageClient {
 
   /** Gateway unified USDC balance for a depositor across source-chain domains. */
   async getUnifiedBalance(depositor: Address, opts?: { sourceChains?: SourceChain[] }): Promise<GatewayBalances> {
-    const chains = opts?.sourceChains ?? (Object.keys(SOURCE_CHAINS) as SourceChain[]);
-    const sources = chains.map((c) => ({ domain: SOURCE_CHAINS[c].domain, depositor }));
+    const chains = opts?.sourceChains ?? (Object.keys(this.network.sourceChains) as SourceChain[]);
+    const sources = chains.map((c) => ({ domain: this.network.sourceChains[c].domain, depositor }));
     return this.gatewayApi.getBalances("USDC", sources);
   }
 
@@ -277,7 +292,7 @@ export class PortageClient {
    * Note: a transfer needs headroom for the fee — you cannot transfer the entire available amount.
    */
   async getGatewayAvailable(depositor: Address, chain: SourceChain): Promise<bigint> {
-    const domain = SOURCE_CHAINS[chain].domain;
+    const domain = this.network.sourceChains[chain].domain;
     const res = await this.gatewayApi.getBalances("USDC", [{ domain, depositor }]);
     const entry = res.balances.find((b) => b.domain === domain);
     return entry ? parseUnits(entry.balance, 6) : 0n;
@@ -308,4 +323,5 @@ export class PortageClient {
   }
 }
 
-export const ARC_CHAIN_ID = ARC.chainId;
+/** @deprecated Use `getNetwork().arc.chainId`. Arc Testnet only. */
+export const ARC_CHAIN_ID = getNetwork().arc.chainId;

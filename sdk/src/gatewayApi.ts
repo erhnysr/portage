@@ -1,5 +1,5 @@
 import type { Address, Hex } from "viem";
-import { GATEWAY } from "./config.js";
+import { getNetwork, DEFAULT_NETWORK } from "./config.js";
 import type { BurnIntentMessage } from "./burnIntent.js";
 
 export interface TransferResult {
@@ -21,7 +21,7 @@ export interface GatewayBalances {
 
 /** Thin client over Circle's Gateway testnet HTTP API. */
 export class GatewayApi {
-  constructor(private readonly baseUrl: string = GATEWAY.apiTestnet) {}
+  constructor(private readonly baseUrl: string = getNetwork(DEFAULT_NETWORK).gateway.api) {}
 
   /** POST /v1/transfer — submit a signed burn intent, receive an attestation for the destination. */
   async submitTransfer(message: BurnIntentMessage, signature: Hex): Promise<TransferResult> {
