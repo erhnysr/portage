@@ -32,6 +32,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
     {
         dealId = _dealId(payer, salt, address(cond), amount, hardDeadline);
         _fund(dealId, amount);
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, dealId, payer, salt, address(cond), amount, hardDeadline, participants);
@@ -55,6 +56,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i2"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _two(alice, bob), _amt2(60e6, 40e6));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i2"), address(cond), AMOUNT, dl, _two(alice, bob));
@@ -77,6 +79,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i3"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i3"), address(cond), AMOUNT, dl, _one(alice));
@@ -95,6 +98,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i4"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i4"), address(cond), AMOUNT, dl, _one(alice));
@@ -115,6 +119,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i5"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i5"), address(cond), AMOUNT, dl, _one(alice));
@@ -135,6 +140,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i6"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i6"), address(cond), AMOUNT, dl, _one(alice));
@@ -172,6 +178,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i8"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setRevertOnResolve(true); // condition is bricked forever
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i8"), address(cond), AMOUNT, dl, _one(alice));
@@ -212,6 +219,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         _fund(deal, AMOUNT);
         // condition tries to pay `stranger`, who is NOT in the participant set {alice}.
         cond.setOutcome(true, _one(stranger), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i11"), address(cond), AMOUNT, dl, _one(alice));
@@ -227,6 +235,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i12"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i12"), address(cond), AMOUNT, dl, _one(alice));
@@ -253,6 +262,7 @@ contract EscrowInvariantsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("i16"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("i16"), address(cond), AMOUNT, dl, _one(alice));
@@ -380,6 +390,7 @@ contract EscrowReentrancyInvariantsTest is EscrowTestBase {
         // fund via the stand-in creditor (this contract) using the hostile token
         ledger.credit(ESCROW_APP, deal, AMOUNT, keccak256("gw-reentry"));
         cond.setOutcome(true, _one(address(attacker)), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, salt, address(cond), AMOUNT, dl, _one(address(attacker)));

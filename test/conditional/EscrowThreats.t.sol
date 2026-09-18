@@ -25,6 +25,7 @@ contract EscrowThreatsTest is EscrowTestBase {
     function _openWith(bytes32 salt, uint256 dl, address[] memory participants) internal returns (bytes32 deal) {
         deal = _dealId(payer, salt, address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, salt, address(cond), AMOUNT, dl, participants);
@@ -38,6 +39,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t1"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(address(cond)), _amt1(AMOUNT)); // pays itself
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t1"), address(cond), AMOUNT, dl, _one(alice));
@@ -53,6 +55,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t2"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _two(alice, bob), _amt2(70e6, 40e6)); // 110e6 > 100e6
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t2"), address(cond), AMOUNT, dl, _two(alice, bob));
@@ -68,6 +71,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t3"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _two(alice, bob), _amt2(60e6, 30e6)); // 90e6 < 100e6
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t3"), address(cond), AMOUNT, dl, _two(alice, bob));
@@ -83,6 +87,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t4"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t4"), address(cond), AMOUNT, dl, _one(alice));
@@ -117,6 +122,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t6"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setRevertOnResolve(true);
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t6"), address(cond), AMOUNT, dl, _one(alice));
@@ -136,6 +142,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t8"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t8"), address(cond), AMOUNT, dl, _one(alice));
@@ -188,6 +195,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, keccak256("t12"), address(cond), AMOUNT, dl);
         _fund(deal, AMOUNT);
         cond.setOutcome(true, _one(alice), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, keccak256("t12"), address(cond), AMOUNT, dl, _one(alice));
@@ -235,6 +243,7 @@ contract EscrowThreatsTest is EscrowTestBase {
         bytes32 salt = keccak256("t14");
         bytes32 deal = _dealId(payer, salt, address(cond), AMOUNT, dl); // committed to the real payer
         _fund(deal, AMOUNT);
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
 
         // Attacker tries to open the funded deal with themselves as sole recipient.
@@ -288,6 +297,7 @@ contract EscrowThreatsTokenTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, salt, address(cond), AMOUNT, dl);
         ledger.credit(ESCROW_APP, deal, AMOUNT, keccak256("gw-t7"));
         cond.setOutcome(true, _one(address(attacker)), _amt1(AMOUNT));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, salt, address(cond), AMOUNT, dl, _one(address(attacker)));
@@ -312,6 +322,7 @@ contract EscrowThreatsTokenTest is EscrowTestBase {
         bytes32 deal = _dealId(payer, salt, address(cond), AMOUNT, dl);
         ledger.credit(ESCROW_APP, deal, AMOUNT, keccak256("gw-t10"));
         cond.setOutcome(true, _two(alice, bob), _amt2(60e6, 40e6));
+        vm.prank(governor);
         condReg.setApproved(address(cond), true);
         vm.prank(payer);
         escrow.open(ESCROW_APP, deal, payer, salt, address(cond), AMOUNT, dl, _two(alice, bob));
