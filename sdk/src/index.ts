@@ -5,3 +5,6 @@ export * from "./burnIntent.js";
 export * from "./gatewayApi.js";
 export * from "./client.js";
 export * from "./payouts.js";
+export * from "./deals.js";
+export * from "./escrow.js";
+export * from "./conditions.js";
