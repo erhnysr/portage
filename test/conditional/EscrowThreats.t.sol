@@ -163,14 +163,9 @@ contract EscrowThreatsTest is EscrowTestBase {
         escrow.resolve(deal);
     }
 
-    // ----------------------------------------------------------------- T9 (DEFERRED per SPEC)
-    /// T9: a verdict flips between the arena's finalisation and the escrow's read. The SPEC's
-    ///     own build order (§10.9/§10.10) puts VerdictCondition and the executed adversarial
-    ///     interleaving test AFTER this failing-first step, and requires the deployed Arena,
-    ///     which is not part of this session's scope. Deferred per SPEC — NOT fabricated here.
-    function test_T9_verdictReadsFinalizedNotPhase_DEFERRED() public {
-        vm.skip(true);
-    }
+    // T9 is covered live in test/conditional/EscrowVerdict.t.sol
+    // (test_T9_phaseEndedButNotFinalized_doesNotSettle) against the real vendored Arena: the
+    // former DEFERRED placeholder here has been removed now that VerdictCondition exists.
 
     // ----------------------------------------------------------------- T11
     /// T11: the registry owner approving a malicious condition is an ACCEPTED, documented trust
