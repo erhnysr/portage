@@ -48,6 +48,21 @@ export interface PortageDeployment {
   mintForwarder: Address;
 }
 
+/**
+ * Conditional-settlement layer deployment. Each address is `PENDING` until the layer is deployed
+ * to the network (SPEC §10.11); the same sentinel the `arcMainnet` network uses, so consumers get
+ * a clear error instead of a wrong address. Resolve via {conditionAddress}, or pass an explicit
+ * address to the wrapper.
+ */
+export interface ConditionsDeployment {
+  conditionRegistry: Address | Pending;
+  conditionalEscrow: Address | Pending;
+  mutualReleaseCondition: Address | Pending;
+  timelockCondition: Address | Pending;
+  attestationCondition: Address | Pending;
+  verdictCondition: Address | Pending;
+}
+
 /** A consolidation source chain: its Gateway domain and local USDC token. */
 export interface SourceChainInfo {
   domain: number;
@@ -59,6 +74,8 @@ export interface NetworkConfig {
   arc: ArcNetwork;
   gateway: GatewayNetwork;
   contracts: PortageDeployment;
+  /** Conditional-settlement layer addresses (PENDING until deployed — SPEC §10.11). */
+  conditions: ConditionsDeployment;
   sourceChains: Record<SourceChain, SourceChainInfo>;
 }
 
@@ -101,6 +118,16 @@ export const ARC_TESTNET: NetworkConfig = {
     router: "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B",
     mintForwarder: "0x65473aF9a6006C20C100F6dBA174657b8D88aaed",
   },
+  // Conditional-settlement layer: not yet deployed (SPEC §10.11). Do NOT guess these — populate
+  // each once the deploy broadcast is verified on ArcScan, flipping it from PENDING to an Address.
+  conditions: {
+    conditionRegistry: PENDING,
+    conditionalEscrow: PENDING,
+    mutualReleaseCondition: PENDING,
+    timelockCondition: PENDING,
+    attestationCondition: PENDING,
+    verdictCondition: PENDING,
+  },
   sourceChains: ARC_TESTNET_SOURCE_CHAINS,
 };
 
@@ -134,6 +161,30 @@ export function getNetwork(name: NetworkName = DEFAULT_NETWORK): NetworkConfig {
 /** Whether a network's values are published (i.e. {getNetwork} will succeed). */
 export function isNetworkAvailable(name: NetworkName): boolean {
   return NETWORKS[name] !== PENDING;
+}
+
+/** Name of a conditional-settlement contract in {ConditionsDeployment}. */
+export type ConditionContract = keyof ConditionsDeployment;
+
+/**
+ * Resolve a conditional-settlement contract address. Throws while the layer is undeployed
+ * (PENDING) on the network — pass an explicit address to the wrapper until §10.11 lands.
+ */
+export function conditionAddress(name: ConditionContract, network: NetworkConfig = getNetwork()): Address {
+  const addr = network.conditions[name];
+  if (addr === PENDING) {
+    throw new Error(
+      `Portage conditional-settlement contract "${name}" is not deployed on "${network.name}" yet ` +
+        `(SPEC §10.11). Populate NETWORKS.${network.name}.conditions.${name} in config.ts once the ` +
+        `deploy is verified, or pass an explicit address to the wrapper.`,
+    );
+  }
+  return addr;
+}
+
+/** Whether a network's conditional-settlement layer is deployed (i.e. {conditionAddress} succeeds). */
+export function isConditionsDeployed(network: NetworkConfig = getNetwork()): boolean {
+  return Object.values(network.conditions).every((a) => a !== PENDING);
 }
 
 export function sourceChainDomain(chain: SourceChain, network: NetworkConfig = getNetwork()): number {
