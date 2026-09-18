@@ -4,11 +4,11 @@ pragma solidity 0.8.28;
 import {EscrowTestBase} from "./EscrowTestBase.sol";
 import {IConditionalEscrow} from "../../contracts/conditions/IConditionalEscrow.sol";
 import {VerdictCondition} from "../../contracts/conditions/VerdictCondition.sol";
-import {Arena} from "../vendor/coliseum/Arena.sol";
-import {ArenaFactory} from "../vendor/coliseum/ArenaFactory.sol";
-import {ReputationNFT} from "../vendor/coliseum/ReputationNFT.sol";
+import {Arena} from "../../contracts/arena/Arena.sol";
+import {ArenaFactory} from "../../contracts/arena/ArenaFactory.sol";
+import {ReputationNFT} from "../../contracts/arena/ReputationNFT.sol";
 
-/// @notice Tests for VerdictCondition against the REAL vendored Coliseum Arena (not a mock). The
+/// @notice Tests for VerdictCondition against the REAL Coliseum Arena (contracts/arena/, not a mock). The
 ///         arena is deployed directly with the escrow's MockUSDC (the factory hardcodes USDC to the
 ///         Arc native address 0x3600…, unavailable locally) and authorized on the real
 ///         ReputationNFT via the factory, so finalize()'s repNFT.mint succeeds.
