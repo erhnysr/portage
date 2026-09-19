@@ -53,6 +53,7 @@ contract DeployConditions is Script {
         VerdictCondition verdict;
         bytes32 escrowApp;
         address governor;
+        address deployer;
         bool wired;
     }
 
@@ -63,49 +64,73 @@ contract DeployConditions is Script {
         address governorCfg = vm.envOr("PORTAGE_GOVERNOR", address(0));
         bytes32 escrowApp = keccak256(bytes(vm.envOr("PORTAGE_ESCROW_APP_NAME", string("portage-escrow-v1"))));
 
+        // The governor setup (registerApp) is onlyOwner on the EXISTING AppRegistry, so it can only
+        // run in-broadcast when the broadcaster IS that owner. Read the live owner (a view call, so
+        // it stays outside startBroadcast); if it reverts — e.g. a local simulation with no core
+        // deployed — we skip setup rather than attempt an unauthorized registerApp.
+        d.escrowApp = escrowApp;
+
+        address coreOwner;
+        bool ownerKnown;
+        // Guard the code-size check: calling owner() on an address with no code (e.g. a local
+        // simulation with no core deployed) would revert before try/catch could catch it.
+        if (appRegistry.code.length > 0) {
+            try AppRegistry(appRegistry).owner() returns (address o) {
+                coreOwner = o;
+                ownerKnown = true;
+            } catch {}
+        }
+
         vm.startBroadcast();
 
-        address deployer = msg.sender;
-        address governor = governorCfg == address(0) ? deployer : governorCfg;
+        d.deployer = msg.sender;
+        // New contracts share the core governor by default (so the same account runs setup and
+        // later admin), unless PORTAGE_GOVERNOR overrides it. (Written straight into `d` to keep
+        // the stack shallow — many typed locals here overflow it.)
+        d.governor = governorCfg != address(0) ? governorCfg : (ownerKnown ? coreOwner : d.deployer);
 
         // 1-3: deploy in dependency order (no external calls in any constructor).
-        ConditionRegistry conditionRegistry = new ConditionRegistry(governor);
-        ConditionalEscrow escrow =
-            new ConditionalEscrow(appRegistry, ledger, payoutEngine, address(conditionRegistry), governor);
-        MutualReleaseCondition mutualRelease = new MutualReleaseCondition(address(escrow));
-        TimelockCondition timelock = new TimelockCondition(address(escrow));
-        AttestationCondition attestation = new AttestationCondition(address(escrow));
-        VerdictCondition verdict = new VerdictCondition(address(escrow));
+        d.conditionRegistry = new ConditionRegistry(d.governor);
+        d.escrow = new ConditionalEscrow(appRegistry, ledger, payoutEngine, address(d.conditionRegistry), d.governor);
+        d.mutualRelease = new MutualReleaseCondition(address(d.escrow));
+        d.timelock = new TimelockCondition(address(d.escrow));
+        d.attestation = new AttestationCondition(address(d.escrow));
+        d.verdict = new VerdictCondition(address(d.escrow));
 
-        // 4-5: governor-only setup. registerApp is onlyOwner on the EXISTING AppRegistry, and
-        // setApproved is onlyOwner on the ConditionRegistry we just deployed (owner = governor);
-        // both require the broadcaster to be the governor.
-        bool wired = false;
-        if (governor == deployer) {
+        // 4-5: governor setup, in-broadcast only when the broadcaster is BOTH the core owner (for
+        // registerApp) and the ConditionRegistry owner (for setApproved) — i.e. deployer is the
+        // core governor. Otherwise deploy-only; the governor makes the calls afterward (see report).
+        if (ownerKnown && d.deployer == coreOwner && d.governor == d.deployer) {
             // O3/D9: one call sets the escrow app's owner (governor) and payoutController (escrow).
-            AppRegistry(appRegistry).registerApp(escrowApp, governor, address(escrow));
+            AppRegistry(appRegistry).registerApp(d.escrowApp, d.governor, address(d.escrow));
             // I9: allowlist all four conditions.
-            conditionRegistry.setApproved(address(mutualRelease), true);
-            conditionRegistry.setApproved(address(timelock), true);
-            conditionRegistry.setApproved(address(attestation), true);
-            conditionRegistry.setApproved(address(verdict), true);
-            wired = true;
+            d.conditionRegistry.setApproved(address(d.mutualRelease), true);
+            d.conditionRegistry.setApproved(address(d.timelock), true);
+            d.conditionRegistry.setApproved(address(d.attestation), true);
+            d.conditionRegistry.setApproved(address(d.verdict), true);
+            d.wired = true;
         }
 
         vm.stopBroadcast();
 
-        d = Deployment(
-            conditionRegistry, escrow, mutualRelease, timelock, attestation, verdict, escrowApp, governor, wired
-        );
-        _report(d, appRegistry, ledger, payoutEngine);
+        _report(d, appRegistry, ledger, payoutEngine, coreOwner, ownerKnown);
     }
 
-    function _report(Deployment memory d, address appRegistry, address ledger, address payoutEngine) internal pure {
+    function _report(
+        Deployment memory d,
+        address appRegistry,
+        address ledger,
+        address payoutEngine,
+        address coreOwner,
+        bool ownerKnown
+    ) internal pure {
         console2.log("======= Portage conditional-settlement deployment =======");
         console2.log("Core AppRegistry:   ", appRegistry);
         console2.log("Core Ledger:        ", ledger);
         console2.log("Core PayoutEngine:  ", payoutEngine);
-        console2.log("Governor:           ", d.governor);
+        console2.log("Core owner (gov):   ", ownerKnown ? coreOwner : address(0));
+        console2.log("Broadcaster:        ", d.deployer);
+        console2.log("New-contract gov:   ", d.governor);
         console2.log("---------------------------------------------------------");
         console2.log("ConditionRegistry:  ", address(d.conditionRegistry));
         console2.log("ConditionalEscrow:  ", address(d.escrow));
@@ -118,13 +143,15 @@ contract DeployConditions is Script {
         console2.log("---------------------------------------------------------");
 
         if (d.wired) {
-            console2.log("Setup: DONE");
+            console2.log("Setup: DONE (broadcaster is the core governor)");
             console2.log("  registerApp(escrowApp, governor, escrow)  [escrow = payoutController]");
             console2.log("  setApproved(condition, true) x4           [MutualRelease/Timelock/Attestation/Verdict]");
         } else {
-            console2.log("Setup: SKIPPED - governor != deployer. The governor must call:");
-            console2.log("  AppRegistry.registerApp(escrowApp, governor, escrow)");
-            console2.log("  ConditionRegistry.setApproved(<each condition>, true)");
+            console2.log("Setup: SKIPPED - broadcaster is NOT the core governor (see 'Core owner' above).");
+            console2.log("Broadcast this script from the core governor account (--account <gov> / --sender <gov>");
+            console2.log("for a dry-run), OR have the governor make these calls afterward:");
+            console2.log("  AppRegistry.registerApp(escrowApp, <governor>, escrow)   [escrow = payoutController]");
+            console2.log("  ConditionRegistry.setApproved(<each condition>, true)    [must own ConditionRegistry]");
         }
         console2.log("Next: populate config.ts conditions{} (PENDING -> these addresses); verify on ArcScan.");
         console2.log("=========================================================");
