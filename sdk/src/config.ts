@@ -118,15 +118,17 @@ export const ARC_TESTNET: NetworkConfig = {
     router: "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B",
     mintForwarder: "0x65473aF9a6006C20C100F6dBA174657b8D88aaed",
   },
-  // Conditional-settlement layer: not yet deployed (SPEC §10.11). Do NOT guess these — populate
-  // each once the deploy broadcast is verified on ArcScan, flipping it from PENDING to an Address.
+  // Conditional-settlement layer, deployed + wired on Arc Testnet via DeployConditions.s.sol
+  // (chain 5042002, deploy commit b734483; all 11 txs succeeded — 6 deploys + registerApp +
+  // 4x setApproved). The escrow is registered as payoutController for appId
+  // keccak256("portage-escrow-v1") and all four conditions are approved in the registry.
   conditions: {
-    conditionRegistry: PENDING,
-    conditionalEscrow: PENDING,
-    mutualReleaseCondition: PENDING,
-    timelockCondition: PENDING,
-    attestationCondition: PENDING,
-    verdictCondition: PENDING,
+    conditionRegistry: "0x82Df51DE89d7BD1068E60BBf7F27942D28021b29",
+    conditionalEscrow: "0x2506618A73396aF31cdF3f1f407942fC6e52eDb5",
+    mutualReleaseCondition: "0x92cEbd6Da8A8E3DD4aCBEfe24F43099Bd344Cd0b",
+    timelockCondition: "0x168442bF6EA2d97A9290a696a22bf4c3E0667eEB",
+    attestationCondition: "0x3E7b1D97050c2e59f87A4444f53e03dB8aa558af",
+    verdictCondition: "0x479eCdF55EBe4F3868f1Ee0A0511c01B2CA4Bdec",
   },
   sourceChains: ARC_TESTNET_SOURCE_CHAINS,
 };
