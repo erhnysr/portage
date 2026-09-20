@@ -63,6 +63,15 @@ export interface ConditionsDeployment {
   verdictCondition: Address | Pending;
 }
 
+/**
+ * Coliseum Arena deployment — the dispute engine behind `VerdictCondition` (SPEC §7). Read by the
+ * arena frontend (apps/arena) so it shares one source of truth with the SDK instead of hardcoding.
+ */
+export interface ArenaDeployment {
+  arenaFactory: Address;
+  reputationNft: Address;
+}
+
 /** A consolidation source chain: its Gateway domain and local USDC token. */
 export interface SourceChainInfo {
   domain: number;
@@ -76,6 +85,8 @@ export interface NetworkConfig {
   contracts: PortageDeployment;
   /** Conditional-settlement layer addresses (PENDING until deployed — SPEC §10.11). */
   conditions: ConditionsDeployment;
+  /** Coliseum Arena deployment behind VerdictCondition (SPEC §7). */
+  arena: ArenaDeployment;
   sourceChains: Record<SourceChain, SourceChainInfo>;
 }
 
@@ -129,6 +140,13 @@ export const ARC_TESTNET: NetworkConfig = {
     timelockCondition: "0x168442bF6EA2d97A9290a696a22bf4c3E0667eEB",
     attestationCondition: "0x3E7b1D97050c2e59f87A4444f53e03dB8aa558af",
     verdictCondition: "0x479eCdF55EBe4F3868f1Ee0A0511c01B2CA4Bdec",
+  },
+  // Coliseum Arena on Arc Testnet — the canonical deployment (matches the Coliseum README and the
+  // source absorbed into contracts/arena/). VerdictCondition resolves against ArenaFactory-created
+  // arenas; the arena frontend reads these from here rather than hardcoding.
+  arena: {
+    arenaFactory: "0x13a38e7C2bA5AFA76a1AC21Eaef9f4DEA293FEBe",
+    reputationNft: "0x953f508CdC9DC4FaA17D898a5e65A91a262F6607",
   },
   sourceChains: ARC_TESTNET_SOURCE_CHAINS,
 };

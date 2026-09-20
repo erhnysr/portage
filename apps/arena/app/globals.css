@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Typography */
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-public-sans);
+  --font-sans: var(--font-public-sans);
+  --font-mono: var(--font-space-mono);
+
+  /* Marble design system palette */
+  --color-bg: #efede7; /* pale cool marble */
+  --color-surface: #ffffff;
+  --color-text: #1c1815;
+  --color-accent: #2d6e68; /* muted teal-green */
+  --color-accent-light: #3f8f86;
+  --color-accent-tint: #ddebe8;
+  --color-accent-secondary: #6b1f1f; /* oxblood, used sparingly */
+  --color-muted: #c9c2b4;
+}
+
+:root {
+  --bg: #efede7;
+  --surface: #ffffff;
+  --text: #1c1815;
+  --accent: #2d6e68;
+  --accent-light: #3f8f86;
+  --accent-tint: #ddebe8;
+  --accent-secondary: #6b1f1f;
+  --muted: #c9c2b4;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-public-sans), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
