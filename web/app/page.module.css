@@ -1,531 +1,854 @@
-/* Faithful conversion of the inline styles in design-reference/portage-landing.html.
-   Colors reference the design tokens defined in globals.css (:root). */
+/* Portage landing — light theme (approved redesign).
+   Tokens live in globals.css (:root). Desktop-first; breakpoints at 1024 / 640. */
 
 .page {
   min-height: 100vh;
   width: 100%;
+  overflow-x: clip;
 }
 
-/* ---------- nav ---------- */
+/* shared content max-width + side gutter */
+.navInner,
+.heroInner,
+.docket,
+.trust,
+.sectionInner,
+.footer {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* =========================================================== nav */
 .nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgba(11, 13, 18, 0.04), 0 8px 24px -16px rgba(11, 13, 18, 0.12);
+}
+/* brand-gradient hairline at the very bottom of the nav */
+.nav::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--brand-line);
+}
+.navInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 56px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.12);
+  height: 66px;
 }
 .brand {
-  display: flex;
-  align-items: baseline;
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
 }
-.brandName {
-  font-family: var(--font-serif);
+.wordmark {
+  font-family: var(--ff-display);
   font-weight: 700;
-  font-size: 22px;
-  letter-spacing: 0.5px;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
-.brandManifest {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent);
-  letter-spacing: 1px;
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.segments {
+  display: flex;
+  gap: 8px;
+}
+.segment {
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease,
+    color 0.15s ease;
+}
+.segment:hover {
+  transform: translateY(-1px);
+  color: var(--ink);
+}
+.segPurple:hover {
+  border-color: rgba(124, 92, 252, 0.4);
+  background: rgba(124, 92, 252, 0.08);
+  color: var(--purple);
+}
+.segBlue:hover {
+  border-color: rgba(39, 117, 202, 0.4);
+  background: rgba(39, 117, 202, 0.08);
+  color: var(--blue);
+}
+.segCyan:hover {
+  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(34, 211, 238, 0.1);
+  color: #0e7490;
+}
+.navDivider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-strong);
+}
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--muted);
   white-space: nowrap;
 }
-.navLinks {
-  display: flex;
-  gap: 32px;
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18), 0 0 8px rgba(34, 197, 94, 0.7);
+  animation: portage-pulse 2.4s ease-in-out infinite;
+}
+.launch {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 16px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: #fff;
   font-size: 14px;
-  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 6px 18px -10px rgba(11, 13, 18, 0.6);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.launch:hover {
+  transform: translateY(-2px);
+  background: #000;
+  box-shadow: 0 12px 26px -12px rgba(11, 13, 18, 0.75);
 }
 
-/* ---------- hero ---------- */
+/* =========================================================== hero */
 .hero {
-  padding: 64px 56px 48px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.12);
-}
-.heroKicker {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: rgba(237, 230, 214, 0.45);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  margin-bottom: 28px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 96px 0 84px;
 }
 .heroGrid {
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 56px;
-  align-items: start;
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: linear-gradient(rgba(11, 13, 18, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 13, 18, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 88%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 88%);
+}
+.heroMesh {
+  position: absolute;
+  top: -80px;
+  left: 0;
+  width: 100%;
+  height: 620px;
+  z-index: -1;
+  pointer-events: none;
+}
+.heroInner {
+  position: relative;
+  z-index: 1;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 26px;
+}
+.badgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--purple);
 }
 .heroTitle {
-  font-family: var(--font-serif);
+  font-family: var(--ff-display);
   font-weight: 700;
-  font-size: 78px;
-  line-height: 1.15;
-  letter-spacing: -1.5px;
-  margin: 0 0 30px;
-  padding-bottom: 8px;
+  font-size: 68px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 24px;
+  max-width: 14ch;
 }
-.clears {
-  color: var(--accent);
-  text-shadow: 0 0 28px rgba(124, 111, 224, 0.55);
+.grad {
+  background: var(--brand-line);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .heroSub {
-  font-size: 15px;
-  line-height: 1.65;
-  color: rgba(237, 230, 214, 0.62);
-  max-width: 440px;
-  margin: 0 0 30px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 56ch;
+  margin: 0 0 34px;
 }
 .heroCtas {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
 }
 .btnPrimary {
   display: inline-flex;
   align-items: center;
-  padding: 13px 24px;
-  background: var(--accent);
-  color: var(--bg);
+  padding: 13px 22px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 15px;
+  box-shadow: 0 8px 22px -12px rgba(11, 13, 18, 0.6);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .btnPrimary:hover {
-  color: var(--bg);
+  transform: translateY(-2px);
+  background: #000;
+  box-shadow: 0 14px 30px -14px rgba(11, 13, 18, 0.8);
 }
 .btnGhost {
   display: inline-flex;
   align-items: center;
-  padding: 13px 24px;
-  border: 1px solid rgba(237, 230, 214, 0.3);
-  color: var(--text);
-  font-size: 13px;
+  padding: 13px 22px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 15px;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.btnGhost:hover {
+  transform: translateY(-2px);
+  border-color: var(--blue);
+  background: #fff;
 }
 
-/* ---------- technical docket ---------- */
+/* =========================================================== docket strip */
 .docket {
-  border: 1px solid rgba(237, 230, 214, 0.15);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  margin-bottom: 20px;
+  max-width: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--brand-fill);
+  color: #fff;
 }
-.docketHead {
-  padding: 10px 18px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.12);
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 2px;
-  color: rgba(237, 230, 214, 0.4);
-  text-transform: uppercase;
-}
-.docketBody {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.2px;
-}
-.docketRow {
+.docketCell {
   display: flex;
-  justify-content: space-between;
-  padding: 10px 18px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.08);
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 28px;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  transition: background 0.15s ease;
 }
-.docketRowLast {
-  border-bottom: none;
+.docketCell:last-child {
+  border-right: none;
+}
+.docketCell:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 .docketKey {
-  color: rgba(237, 230, 214, 0.42);
-  letter-spacing: 1px;
-}
-
-/* ---------- route diagram ----------
-   Container keeps the 340:240 aspect ratio and fills its column (capped), so the SVG scales
-   fluidly. All labels/wordmark are SVG <text> in viewBox units, so they stay aligned at any size. */
-.diagram {
-  width: 100%;
-  max-width: 440px;
-  aspect-ratio: 340 / 240;
-  background: rgba(237, 230, 214, 0.02);
-  border: 1px solid rgba(237, 230, 214, 0.08);
-  overflow: hidden;
-}
-.diagramSvg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.diagramWord {
-  fill: rgba(237, 230, 214, 0.08);
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 58px;
-  letter-spacing: -0.5px;
-}
-.diagramLabel {
-  fill: var(--text);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.5px;
-}
-
-/* ---------- section shell ---------- */
-.section {
-  padding: 56px 56px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.12);
-}
-.sectionKicker {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--accent);
-  letter-spacing: 2px;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.docketVal {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* =========================================================== trust strip */
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding-top: 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--border);
+}
+.trustItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 26px;
+  font-size: 14px;
+  color: var(--muted);
+  border-right: 1px solid var(--border-strong);
+}
+.trustItem:last-child {
+  border-right: none;
+}
+.trustItem svg {
+  color: var(--blue);
+  flex-shrink: 0;
+}
+
+/* =========================================================== section shell */
+.section {
+  position: relative;
+  isolation: isolate;
+  padding: 84px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sectionInner {
+  position: relative;
+  z-index: 1;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  margin-bottom: 22px;
+}
+.eyebrowNum {
+  background: var(--brand-line);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
 }
 .sectionTitle {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: 36px;
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+.sectionLede {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 62ch;
+  margin: 0 0 40px;
+}
+
+/* blurred brand blobs behind each section */
+.blobProof,
+.blobArch,
+.blobSdk {
+  position: absolute;
+  z-index: 0;
+  width: 720px;
+  height: 480px;
+  pointer-events: none;
+}
+.blobProof {
+  top: -40px;
+  right: -120px;
+}
+.blobArch {
+  top: 20px;
+  left: -160px;
+}
+.blobSdk {
+  bottom: -60px;
+  right: -100px;
+}
+
+/* =========================================================== shared card */
+.card {
+  position: relative;
+  padding: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(11, 13, 18, 0.04), 0 12px 28px -24px rgba(11, 13, 18, 0.3);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--blue);
+  background: var(--tint);
+  box-shadow: 0 18px 40px -24px rgba(39, 117, 202, 0.45);
+}
+.cardAccent {
+  background: var(--brand-fill);
+  border-color: transparent;
+  color: #fff;
+}
+.cardAccent:hover {
+  background: var(--brand-fill);
+  border-color: transparent;
+  filter: brightness(1.05);
+}
+.cardTag {
+  display: inline-block;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 12px;
+}
+.cardAccent .cardTag {
+  color: rgba(255, 255, 255, 0.85);
+}
+.cardBody {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
   margin: 0;
 }
+.cardAccent .cardBody {
+  color: rgba(255, 255, 255, 0.92);
+}
+.inlineCode {
+  font-family: var(--ff-mono);
+  font-size: 0.88em;
+  background: rgba(124, 92, 252, 0.1);
+  color: var(--purple);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
 
-/* ---------- cleared shipments table ---------- */
-.proofHead {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 32px;
-}
-.proofMeta {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: rgba(237, 230, 214, 0.5);
-}
-.table {
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-.row {
+/* =========================================================== proof cards + manifest */
+.proofCards {
   display: grid;
-  grid-template-columns: 1.3fr 1.1fr 1fr 1.4fr 0.8fr;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 44px;
+}
+.manifest {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(11, 13, 18, 0.04), 0 12px 28px -24px rgba(11, 13, 18, 0.3);
+  overflow: hidden;
+}
+.manifestHead {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
 }
-.tableHead {
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.3);
-  color: rgba(237, 230, 214, 0.5);
+.manifestTitle {
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+}
+.sampleTag {
+  font-family: var(--ff-mono);
   font-size: 11px;
-  letter-spacing: 1px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--faint);
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  padding: 3px 8px;
 }
-.tableRow {
-  padding: 16px 0;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.1);
+.manifestTable {
+  font-family: var(--ff-mono);
+  font-size: 13.5px;
 }
-.tableRowLast {
+.mRow {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1.6fr 0.9fr;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.mRow:last-of-type {
   border-bottom: none;
 }
-.cellWaybill {
+.mHead {
+  color: var(--faint);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: #fbfcfe;
+}
+.mMono {
   color: var(--text);
 }
-.cellRoute {
-  color: var(--route);
-}
-.cellConsignee {
-  color: rgba(237, 230, 214, 0.75);
-}
-.cellStatus {
-  text-align: right;
-  color: var(--accent);
-}
-.headRight {
+.mRight {
   text-align: right;
 }
-/* linked tx hashes: keep the cell color, add a subtle dotted underline as a clickable cue */
-.txLink {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px dotted rgba(237, 230, 214, 0.4);
-  transition: color 0.15s ease, border-color 0.15s ease;
+.mStatus {
+  font-weight: 600;
 }
-.txLink:hover {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+.mCleared {
+  color: #0e7f52;
 }
-/* quarantined (not cleared) rows: muted amber status to set them apart from CLEARED */
-.statusHeld {
-  color: #d9a441;
+.mTransit {
+  color: var(--blue);
 }
-/* empty / error state: one full-width row inside the same table shell, no fake data */
-.tableNotice {
-  padding: 20px 0;
+.liveLink {
+  display: block;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  color: var(--blue);
+  background: #fbfcfe;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.noticeSpan {
-  grid-column: 1 / -1;
-  color: rgba(237, 230, 214, 0.55);
+.liveLink:hover {
+  background: rgba(39, 117, 202, 0.06);
+  color: var(--navy);
 }
 
-/* ---------- how a shipment clears ---------- */
-.steps {
-  font-family: var(--font-mono);
-}
-.step {
+/* =========================================================== architecture steps */
+.stepGrid {
   display: grid;
-  grid-template-columns: 90px 200px 1fr;
-  padding: 22px 0;
-  border-top: 1px solid rgba(237, 230, 214, 0.2);
-  align-items: start;
-}
-.stepLast {
-  border-bottom: 1px solid rgba(237, 230, 214, 0.2);
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
 }
 .stepCode {
-  color: var(--route);
-  font-size: 13px;
+  display: inline-block;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--blue);
+  margin-bottom: 14px;
+}
+.cardAccent .stepCode {
+  color: rgba(255, 255, 255, 0.85);
 }
 .stepName {
-  font-family: var(--font-serif);
+  font-family: var(--ff-display);
+  font-weight: 700;
   font-size: 20px;
-  color: var(--text);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 10px;
 }
-.stepDesc {
-  font-size: 14px;
-  color: rgba(237, 230, 214, 0.65);
-  line-height: 1.6;
+.cardAccent .stepName {
+  color: #fff;
 }
-.accent {
-  color: var(--accent);
+.cardAccent .inlineCode {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 
-/* ---------- sdk code card ---------- */
-.sdkCard {
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(237, 230, 214, 0.18);
-  max-width: 760px;
+/* =========================================================== sdk */
+.sdkGrid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 40px;
+  align-items: center;
 }
-.sdkCardHead {
+.sdkCopy .sectionTitle {
+  margin-top: 4px;
+}
+.sdkDocsLink {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--ff-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.sdkDocsLink:hover {
+  color: var(--navy);
+  transform: translateX(2px);
+}
+.codeWindow {
+  border-radius: 14px;
+  background: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px -30px rgba(11, 13, 18, 0.6);
+  overflow: hidden;
+}
+.codeBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.12);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(237, 230, 214, 0.5);
-  letter-spacing: 1px;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dotRed,
+.dotAmber,
+.dotGreen {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.dotRed {
+  background: #ff5f57;
+}
+.dotAmber {
+  background: #febc2e;
+}
+.dotGreen {
+  background: #28c840;
+}
+.codeFile {
+  margin-left: 8px;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
 }
 .code {
   margin: 0;
-  padding: 24px 28px;
-  font-family: var(--font-mono);
+  padding: 22px 24px;
+  font-family: var(--ff-mono);
   font-size: 13px;
-  line-height: 1.8;
-  color: var(--text);
+  line-height: 1.75;
   overflow-x: auto;
+  color: #e5e9f0;
 }
-.tokKw {
-  color: var(--route);
+.codeLine {
+  display: inline;
+  white-space: pre;
 }
-.tokStr {
-  color: var(--accent);
+.tKw {
+  color: #a78bfa;
 }
-.tokCm {
-  color: rgba(237, 230, 214, 0.45);
+.tStr {
+  color: #5eead4;
+}
+.tNum {
+  color: #7dd3fc;
+}
+.tCom {
+  color: #6b7686;
+  font-style: italic;
+}
+.tFn {
+  color: #60a5fa;
+}
+.tPlain {
+  color: #e5e9f0;
 }
 
-/* ---------- footer ---------- */
+/* =========================================================== footer / metrics */
 .footer {
-  padding: 56px 56px 40px;
+  padding-top: 64px;
+  padding-bottom: 44px;
 }
-.stats {
+.metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 32px;
-  padding-bottom: 44px;
-  border-bottom: 1px solid rgba(237, 230, 214, 0.12);
-  font-family: var(--font-mono);
+  gap: 18px;
+  margin-bottom: 44px;
 }
-.statNum {
-  font-size: 32px;
-  color: var(--accent);
-  font-family: var(--font-serif);
-  font-weight: 600;
+.metric {
+  padding: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(11, 13, 18, 0.04), 0 12px 28px -24px rgba(11, 13, 18, 0.3);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease,
+    box-shadow 0.18s ease;
 }
-.statLabel {
-  font-size: 11px;
-  color: rgba(237, 230, 214, 0.5);
-  letter-spacing: 1px;
-  text-transform: uppercase;
+.metric:hover {
+  transform: translateY(-4px);
+  border-color: var(--blue);
+  background: var(--tint);
+  box-shadow: 0 18px 40px -24px rgba(39, 117, 202, 0.45);
+}
+.metricNum {
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: 42px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.metricOf {
+  font-size: 22px;
+  color: var(--faint);
+  font-weight: 500;
+}
+.metricLabel {
   margin-top: 6px;
-}
-.footerLegal {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 28px;
+  font-family: var(--ff-mono);
   font-size: 12px;
-  color: rgba(237, 230, 214, 0.45);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-.copy {
-  font-family: var(--font-mono);
+.footerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+.wordmarkSm {
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.builtOn {
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+.legal {
+  margin: 20px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--faint);
+  max-width: 70ch;
 }
 
-/* =====================================================================
-   Responsive breakpoints (desktop-first; base rules above target >1024px)
-   - tablet:  641px – 1024px
-   - mobile:  <= 640px
-   ===================================================================== */
-
-/* ---------- TABLET (<= 1024px) ---------- */
+/* =========================================================== responsive */
 @media (max-width: 1024px) {
-  .nav {
-    padding: 18px 32px;
-  }
-  .hero {
-    padding: 48px 32px 40px;
-  }
-  /* stack the hero: text over docket+diagram */
-  .heroGrid {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
   .heroTitle {
-    font-size: 56px;
-  }
-  .section {
-    padding: 40px 32px;
-  }
-  .footer {
-    padding: 40px 32px 32px;
+    font-size: 54px;
   }
   .sectionTitle {
-    font-size: 30px;
+    font-size: 34px;
   }
-  /* keep the 5-col shipments table on one line at this width */
-  .table {
-    font-size: 12px;
+  .proofCards,
+  .stepGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
-  /* diagram can breathe a bit more once the column is full-width */
-  .diagram {
-    max-width: 460px;
+  .docket {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .docketCell:nth-child(2) {
+    border-right: none;
+  }
+  .docketCell:nth-child(1),
+  .docketCell:nth-child(2) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .sdkGrid {
+    grid-template-columns: 1fr;
+    gap: 28px;
   }
 }
 
-/* ---------- MOBILE (<= 640px) ---------- */
 @media (max-width: 640px) {
-  .nav {
-    padding: 16px 20px;
+  .navInner {
+    height: 60px;
   }
-  /* manifest number doesn't fit next to the brand on phones */
-  .brandManifest {
+  /* keep only Launch app + status on the smallest screens; sections reachable by scroll */
+  .segments {
     display: none;
   }
-  .navLinks {
-    gap: 18px;
-    font-size: 13px;
+  .navDivider {
+    display: none;
   }
 
   .hero {
-    padding: 32px 20px;
-  }
-  .heroKicker {
-    font-size: 10px;
-    letter-spacing: 2px;
-    margin-bottom: 20px;
+    padding: 60px 0 56px;
   }
   .heroTitle {
     font-size: 38px;
-    letter-spacing: -1px;
-    margin-bottom: 24px;
+    max-width: none;
   }
   .heroSub {
-    font-size: 14px;
+    font-size: 16px;
   }
-  /* let the two CTAs wrap instead of overflowing */
-  .heroCtas {
-    flex-wrap: wrap;
-  }
-  .diagram {
-    max-width: 100%;
+  .heroCtas .btnPrimary,
+  .heroCtas .btnGhost {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
   .section {
-    padding: 32px 20px;
-  }
-  .footer {
-    padding: 32px 20px 28px;
+    padding: 56px 0;
   }
   .sectionTitle {
-    font-size: 26px;
+    font-size: 28px;
   }
-  /* stack the proof header so the meta line doesn't collide with the title */
-  .proofHead {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .sectionLede {
+    font-size: 16px;
   }
 
-  /* ----- cleared shipments: grid -> stacked cards ----- */
-  .tableHead {
+  .docket {
+    grid-template-columns: 1fr;
+  }
+  .docketCell {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .docketCell:last-child {
+    border-bottom: none;
+  }
+
+  .trustItem {
+    border-right: none;
+    padding: 6px 14px;
+  }
+
+  .proofCards,
+  .stepGrid,
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  /* manifest grid -> stacked, self-labelling cards */
+  .mHead {
     display: none;
   }
-  .tableRow {
-    display: block;
-    border: 1px solid rgba(237, 230, 214, 0.12);
-    padding: 14px 16px;
-    margin-bottom: 12px;
+  .mRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 16px;
   }
-  .tableRowLast {
-    margin-bottom: 0;
-  }
-  .tableRow span {
+  .mRow span {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 16px;
-    padding: 5px 0;
     text-align: left;
   }
-  /* row-label from data-label, so each card is self-describing */
-  .tableRow span::before {
+  .mRow span::before {
     content: attr(data-label);
-    color: rgba(237, 230, 214, 0.45);
+    color: var(--faint);
     font-size: 10px;
-    letter-spacing: 1px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    flex-shrink: 0;
   }
-  .cellStatus {
+  .mRight {
     text-align: left;
   }
 
-  /* ----- architecture steps: 3-col grid -> stacked ----- */
-  .step {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    padding: 18px 0;
-  }
-
-  /* ----- sdk code block: smaller type, still horizontally scrollable ----- */
-  .sdkCardHead {
-    font-size: 10px;
-    padding: 10px 14px;
-  }
-  .code {
-    font-size: 11px;
-    padding: 16px 16px;
-  }
-
-  /* ----- footer stats: 3-col -> single column ----- */
-  .stats {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .statNum {
-    font-size: 28px;
-  }
-  .footerLegal {
+  .footerBottom {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
-    padding-top: 24px;
+    gap: 14px;
   }
 }

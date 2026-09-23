@@ -1,40 +1,41 @@
 import type { Metadata } from "next";
-import { Zilla_Slab, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Space_Grotesk, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// Google Fonts imports replaced with Next.js font optimization (self-hosted, no layout shift).
-const zillaSlab = Zilla_Slab({
+// Self-hosted via next/font (no layout shift, no external <link>):
+//   Space Grotesk — display/headings   Manrope — body   JetBrains Mono — data/code/labels
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-zilla",
+  variable: "--font-body",
   display: "swap",
 });
 
-const ibmPlexSans = IBM_Plex_Sans({
+const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-plex-sans",
-  display: "swap",
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-mono",
+  variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "Portage — Cross-chain USDC payout consolidation",
   description:
-    "Consolidated through Circle Gateway, cleared on Arc, released as one settled payout.",
+    "Every chain deposits. One ledger clears. Consolidated through Circle Gateway, cleared on Arc, released as one settled payout.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${zillaSlab.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable}`}
+      className={`${spaceGrotesk.variable} ${manrope.variable} ${jetBrainsMono.variable}`}
     >
       <body>{children}</body>
     </html>

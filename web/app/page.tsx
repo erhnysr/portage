@@ -1,314 +1,484 @@
 import styles from "./page.module.css";
-import { getShipments } from "../lib/shipments";
-import { ARC_EXPLORER_ADDRESS, ARC_EXPLORER_TX, ROUTER_ADDRESS, short } from "../lib/portage";
+import { ARC_EXPLORER_ADDRESS, ROUTER_ADDRESS } from "../lib/portage";
 
-// Revalidate the on-chain manifest at most once per minute (ISR). Between revalidations
-// every visitor is served cached HTML; the windowed getLogs scan runs server-side only.
-export const revalidate = 60;
+// Static marketing page — no data fetching. The live on-chain manifest is one click away
+// via the "View live data on Arcscan" link (the Router's real address on Arc Testnet).
 
-export default async function Home() {
-  const shipments = await getShipments();
+const REPO_URL = "https://github.com/erhnysr/portage";
+const SDK_URL = "https://www.npmjs.com/package/@erhnysr/portage-sdk";
+const ROUTER_ON_ARCSCAN = `${ARC_EXPLORER_ADDRESS}${ROUTER_ADDRESS}`;
 
+/* ---------- brand mark: three converging lines + ink block, drawn straight on the ground ---------- */
+function Logo({ size }: { size: number }) {
   return (
-    <div className={`${styles.page} p-texture`}>
+    <svg width={size} height={size} viewBox="0 0 88 88" fill="none" aria-hidden="true">
+      <rect x="40" y="30" width="34" height="28" rx="6" fill="#0B0D12" />
+      <path d="M14 18 L40 44" stroke="#7C5CFC" strokeWidth="8" strokeLinecap="round" />
+      <path d="M14 44 L40 44" stroke="#2775CA" strokeWidth="8" strokeLinecap="round" />
+      <path d="M14 70 L40 44" stroke="#22D3EE" strokeWidth="8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ---------- blurred brand blob for section backgrounds (z-index:0; content sits at z-index:1) ---------- */
+function Blob({ id, className }: { id: string; className: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 600 400"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={id} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="70" />
+        </filter>
+      </defs>
+      <g filter={`url(#${id})`}>
+        <circle cx="170" cy="150" r="120" fill="#7C5CFC" opacity="0.14" />
+        <circle cx="340" cy="110" r="110" fill="#2775CA" opacity="0.12" />
+        <circle cx="430" cy="240" r="130" fill="#22D3EE" opacity="0.13" />
+      </g>
+    </svg>
+  );
+}
+
+// Illustrative manifest rows — clearly labelled sample data, NOT live on-chain reads.
+const SAMPLE_MANIFEST = [
+  { origin: "Base Sepolia", amount: "5.00 USDC", destination: "coliseum / arena-1", status: "Cleared" },
+  { origin: "Base Sepolia", amount: "12.00 USDC", destination: "coliseum / arena-1", status: "Cleared" },
+  { origin: "Base Sepolia", amount: "3.50 USDC", destination: "coliseum / arena-2", status: "In transit" },
+] as const;
+
+// SDK code sample — faithful to the real @erhnysr/portage-sdk API (see sdk/README.md).
+type Tok = { t: "kw" | "str" | "num" | "com" | "fn" | "plain"; v: string };
+const CODE: Tok[][] = [
+  [{ t: "kw", v: "import" }, { t: "plain", v: " { PortageClient, appIdFromName } " }, { t: "kw", v: "from" }, { t: "plain", v: " " }, { t: "str", v: '"@erhnysr/portage-sdk"' }],
+  [],
+  [{ t: "com", v: "// Non-custodial: signs with the user's own wallet, never holds keys" }],
+  [{ t: "kw", v: "const" }, { t: "plain", v: " portage = " }, { t: "kw", v: "new" }, { t: "plain", v: " " }, { t: "fn", v: "PortageClient" }, { t: "plain", v: "({ network: " }, { t: "str", v: '"arcTestnet"' }, { t: "plain", v: ", arcPublicClient })" }],
+  [],
+  [{ t: "com", v: "// 1 · Deposit USDC into Circle Gateway's unified balance" }],
+  [{ t: "kw", v: "await" }, { t: "plain", v: " portage." }, { t: "fn", v: "deposit" }, { t: "plain", v: "(wallet, { chain: " }, { t: "str", v: '"baseSepolia"' }, { t: "plain", v: ", amount: " }, { t: "num", v: "5_000000n" }, { t: "plain", v: " })" }],
+  [],
+  [{ t: "com", v: "// 2 · Build + sign the consolidation intent" }],
+  [{ t: "kw", v: "const" }, { t: "plain", v: " intent = portage." }, { t: "fn", v: "buildConsolidationIntent" }, { t: "plain", v: "({ sourceChain: " }, { t: "str", v: '"baseSepolia"' }, { t: "plain", v: ", amount: " }, { t: "num", v: "5_000000n" }, { t: "plain", v: ", depositor })" }],
+  [{ t: "kw", v: "const" }, { t: "plain", v: " burnSig = " }, { t: "kw", v: "await" }, { t: "plain", v: " wallet." }, { t: "fn", v: "signTypedData" }, { t: "plain", v: "({ account: depositor, ...intent.typedData })" }],
+  [],
+  [{ t: "com", v: "// 3 · Submit for a Circle attestation" }],
+  [{ t: "kw", v: "const" }, { t: "plain", v: " { attestation, signature } = " }, { t: "kw", v: "await" }, { t: "plain", v: " portage." }, { t: "fn", v: "submitConsolidation" }, { t: "plain", v: "(intent, burnSig)" }],
+  [],
+  [{ t: "com", v: "// 4 · Clear on Arc — atomic mint + credit into the app ledger" }],
+  [{ t: "kw", v: "await" }, { t: "plain", v: " portage." }, { t: "fn", v: "executeMintWithMeta" }, { t: "plain", v: "(arcWallet, { attestation, signature, meta, metaSig })" }],
+];
+
+const tokClass: Record<Tok["t"], string> = {
+  kw: styles.tKw,
+  str: styles.tStr,
+  num: styles.tNum,
+  com: styles.tCom,
+  fn: styles.tFn,
+  plain: styles.tPlain,
+};
+
+export default function Home() {
+  return (
+    <div className={styles.page}>
       {/* ---------- nav ---------- */}
       <nav className={styles.nav}>
-        <div className={styles.brand}>
-          <span className={styles.brandName}>PORTAGE</span>
-          <span className={styles.brandManifest}>MANIFEST No. 0X4B21-ARC</span>
-        </div>
-        <div className={styles.navLinks}>
-          <a href="#proof">Proof</a>
-          <a href="#architecture">Architecture</a>
-          <a href="#sdk">SDK</a>
+        <div className={styles.navInner}>
+          <a href="#top" className={styles.brand} aria-label="Portage home">
+            <Logo size={30} />
+            <span className={styles.wordmark}>Portage</span>
+          </a>
+
+          <div className={styles.navRight}>
+            <div className={styles.segments}>
+              <a href="#proof" className={`${styles.segment} ${styles.segPurple}`}>
+                Proof
+              </a>
+              <a href="#architecture" className={`${styles.segment} ${styles.segBlue}`}>
+                Architecture
+              </a>
+              <a href="#sdk" className={`${styles.segment} ${styles.segCyan}`}>
+                SDK
+              </a>
+            </div>
+            <span className={styles.navDivider} aria-hidden="true" />
+            <span className={styles.statusPill}>
+              <span className={styles.statusDot} aria-hidden="true" />
+              Arc Testnet
+            </span>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.launch}
+            >
+              Launch app
+            </a>
+          </div>
         </div>
       </nav>
 
       {/* ---------- hero ---------- */}
-      <section className={styles.hero}>
-        <div className={styles.heroKicker}>Cross-chain USDC payout consolidation</div>
-        <div className={styles.heroGrid}>
-          <div>
-            <h1 className={styles.heroTitle}>
-              Every chain
-              <br />
-              deposits. One
-              <br />
-              ledger <span className={styles.clears}>clears.</span>
-            </h1>
-            <p className={styles.heroSub}>
-              Consolidated through Circle Gateway, cleared on Arc, released as one settled payout.
-            </p>
-            <div className={styles.heroCtas}>
-              <a href="#proof" className={styles.btnPrimary}>
-                View the proof →
-              </a>
-              <a href="#architecture" className={styles.btnGhost}>
-                Read the architecture
-              </a>
-            </div>
-          </div>
+      <header id="top" className={styles.hero}>
+        <div className={styles.heroGrid} aria-hidden="true" />
+        <svg
+          className={styles.heroMesh}
+          viewBox="0 0 1200 620"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <defs>
+            <filter id="heroBlur" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="70" />
+            </filter>
+            <linearGradient id="heroFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fff" stopOpacity="1" />
+              <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+            <mask id="heroMask">
+              <rect width="1200" height="620" fill="url(#heroFade)" />
+            </mask>
+          </defs>
+          <g filter="url(#heroBlur)" mask="url(#heroMask)">
+            <ellipse cx="300" cy="150" rx="280" ry="190" fill="#7C5CFC" opacity="0.5" />
+            <ellipse cx="720" cy="110" rx="320" ry="210" fill="#2775CA" opacity="0.45" />
+            <ellipse cx="1000" cy="240" rx="260" ry="200" fill="#22D3EE" opacity="0.4" />
+          </g>
+        </svg>
 
-          <div>
-            {/* technical docket */}
-            <div className={styles.docket}>
-              <div className={styles.docketHead}>Technical docket</div>
-              <div className={styles.docketBody}>
-                <div className={styles.docketRow}>
-                  <span className={styles.docketKey}>PROTOCOL</span>
-                  <span>Circle Gateway + Arc</span>
-                </div>
-                <div className={styles.docketRow}>
-                  <span className={styles.docketKey}>SETTLEMENT</span>
-                  <span>Native USDC</span>
-                </div>
-                <div className={`${styles.docketRow} ${styles.docketRowLast}`}>
-                  <span className={styles.docketKey}>ATTESTATION</span>
-                  <span>Circle Attestation Service</span>
-                </div>
-              </div>
-            </div>
-
-            {/* route diagram — everything lives inside the SVG viewBox so the wordmark, nodes
-                and chain labels scale together and stay aligned at any container width */}
-            <div className={styles.diagram}>
-              <svg
-                viewBox="0 0 340 240"
-                width="100%"
-                height="100%"
-                preserveAspectRatio="xMidYMid meet"
-                className={styles.diagramSvg}
-              >
-                <text x="220" y="120" textAnchor="middle" dominantBaseline="central" className={styles.diagramWord}>
-                  ARC
-                </text>
-                <line x1="60" y1="30" x2="220" y2="120" stroke="#4C7D77" strokeWidth="1.2" className="p-flow" />
-                <line x1="60" y1="120" x2="220" y2="120" stroke="#4C7D77" strokeWidth="1.2" className="p-flow" />
-                <line x1="60" y1="210" x2="220" y2="120" stroke="#4C7D77" strokeWidth="1.2" className="p-flow" />
-                <circle cx="60" cy="30" r="6" fill="#1C1730" stroke="#4C7D77" strokeWidth="1.5" className="p-node" style={{ animationDelay: "0s" }} />
-                <circle cx="60" cy="120" r="6" fill="#1C1730" stroke="#4C7D77" strokeWidth="1.5" className="p-node" style={{ animationDelay: ".5s" }} />
-                <circle cx="60" cy="210" r="6" fill="#1C1730" stroke="#4C7D77" strokeWidth="1.5" className="p-node" style={{ animationDelay: "1s" }} />
-                <circle cx="220" cy="120" r="15" fill="#1C1730" stroke="#7C6FE0" strokeWidth="2" />
-                <circle cx="220" cy="120" r="4" fill="#7C6FE0" className="p-node" />
-                <text x="76" y="24" className={styles.diagramLabel}>BASE</text>
-                <text x="76" y="114" className={styles.diagramLabel}>ETHEREUM</text>
-                <text x="76" y="204" className={styles.diagramLabel}>ARBITRUM</text>
-              </svg>
-            </div>
+        <div className={styles.heroInner}>
+          <span className={styles.badge}>
+            <span className={styles.badgeDot} aria-hidden="true" />
+            Built on Circle Gateway
+          </span>
+          <h1 className={styles.heroTitle}>
+            Every chain deposits.
+            <br />
+            One ledger <span className={styles.grad}>clears.</span>
+          </h1>
+          <p className={styles.heroSub}>
+            Portage consolidates USDC arriving on any chain into a single per-app balance on Arc
+            through Circle Gateway&apos;s unified balance — then releases it as one settled payout,
+            on demand.
+          </p>
+          <div className={styles.heroCtas}>
+            <a href="#proof" className={styles.btnPrimary}>
+              View the proof →
+            </a>
+            <a href="#architecture" className={styles.btnGhost}>
+              Read the architecture
+            </a>
           </div>
+        </div>
+      </header>
+
+      {/* ---------- docket strip ---------- */}
+      <section className={styles.docket}>
+        <div className={styles.docketCell}>
+          <span className={styles.docketKey}>Protocol</span>
+          <span className={styles.docketVal}>Circle Gateway + Arc</span>
+        </div>
+        <div className={styles.docketCell}>
+          <span className={styles.docketKey}>Settlement</span>
+          <span className={styles.docketVal}>Native USDC</span>
+        </div>
+        <div className={styles.docketCell}>
+          <span className={styles.docketKey}>Attestation</span>
+          <span className={styles.docketVal}>Circle Attestation Service</span>
+        </div>
+        <div className={styles.docketCell}>
+          <span className={styles.docketKey}>Chains</span>
+          <span className={styles.docketVal}>Base Sepolia → Arc</span>
         </div>
       </section>
 
-      {/* ---------- cleared shipments ---------- */}
+      {/* ---------- trust strip ---------- */}
+      <section className={styles.trust}>
+        <div className={styles.trustItem}>
+          <TrustIcon kind="code" />
+          <span>Open source</span>
+        </div>
+        <div className={styles.trustItem}>
+          <TrustIcon kind="shield" />
+          <span>393,000+ fuzz calls, 0 reverts across core solvency invariants</span>
+        </div>
+        <div className={styles.trustItem}>
+          <TrustIcon kind="star" />
+          <span>Built for the Arc Builder Program</span>
+        </div>
+        <div className={styles.trustItem}>
+          <TrustIcon kind="check" />
+          <span>Deployed and verified on Arc Testnet</span>
+        </div>
+      </section>
+
+      {/* ---------- proof ---------- */}
       <section id="proof" className={styles.section}>
-        <div className={styles.proofHead}>
-          <div>
-            <div className={styles.sectionKicker}>Proof, not promises</div>
-            <h2 className={styles.sectionTitle}>Cleared shipments</h2>
-          </div>
-          <span className={styles.proofMeta}>Today&apos;s manifest entries</span>
-        </div>
+        <Blob id="blobProof" className={styles.blobProof} />
+        <div className={styles.sectionInner}>
+          <span className={styles.eyebrow}>
+            <span className={styles.eyebrowNum}>01</span> / PROOF
+          </span>
+          <h2 className={styles.sectionTitle}>Deposits in, one payout out.</h2>
+          <p className={styles.sectionLede}>
+            Every deposit lands in Circle Gateway&apos;s unified balance, clears atomically on Arc,
+            and settles into a single per-app ledger balance you draw down on demand.
+          </p>
 
-        <div className={styles.table}>
-          <div className={`${styles.row} ${styles.tableHead}`}>
-            <span>Waybill</span>
-            <span>Route</span>
-            <span>Cargo</span>
-            <span>Consignee</span>
-            <span className={styles.headRight}>Status</span>
+          <div className={styles.proofCards}>
+            <article className={styles.card}>
+              <span className={styles.cardTag}>Deposited</span>
+              <p className={styles.cardBody}>
+                USDC arrives on a source chain and is registered against the Gateway unified
+                balance — no bridging, no wrapped assets.
+              </p>
+            </article>
+            <article className={styles.card}>
+              <span className={styles.cardTag}>In transit</span>
+              <p className={styles.cardBody}>
+                A signed burn intent is attested by Circle, pinning the destination caller to
+                Portage&apos;s forwarder so nothing can be misrouted.
+              </p>
+            </article>
+            <article className={`${styles.card} ${styles.cardAccent}`}>
+              <span className={styles.cardTag}>Cleared</span>
+              <p className={styles.cardBody}>
+                Arc mints and credits in one atomic call. The app balance grows; solvency holds by
+                construction.
+              </p>
+            </article>
           </div>
 
-          {!shipments.ok ? (
-            <div className={`${styles.row} ${styles.tableRow} ${styles.tableRowLast} ${styles.tableNotice}`}>
-              <span className={styles.noticeSpan}>
-                Live manifest temporarily unavailable — read the Router directly on{" "}
-                <a
-                  className={styles.txLink}
-                  href={`${ARC_EXPLORER_ADDRESS}${ROUTER_ADDRESS}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Arcscan
-                </a>
-                .
-              </span>
+          <div className={styles.manifest}>
+            <div className={styles.manifestHead}>
+              <span className={styles.manifestTitle}>Manifest</span>
+              <span className={styles.sampleTag}>sample for illustration</span>
             </div>
-          ) : shipments.shipments.length === 0 ? (
-            <div className={`${styles.row} ${styles.tableRow} ${styles.tableRowLast} ${styles.tableNotice}`}>
-              <span className={styles.noticeSpan}>
-                No cleared shipments yet — this table populates from on-chain{" "}
-                <code>Credited</code> events on the Router.
-              </span>
-            </div>
-          ) : (
-            shipments.shipments.map((s, i) => {
-              const last = i === shipments.shipments.length - 1;
-              const held = s.status === "held";
-              return (
-                <div
-                  key={`${s.txHash}-${i}`}
-                  className={`${styles.row} ${styles.tableRow}${last ? ` ${styles.tableRowLast}` : ""}`}
-                >
-                  <span className={styles.cellWaybill} data-label="Waybill">
-                    <a
-                      className={styles.txLink}
-                      href={`${ARC_EXPLORER_TX}${s.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+            <div className={styles.manifestTable}>
+              <div className={`${styles.mRow} ${styles.mHead}`}>
+                <span>Origin</span>
+                <span>Amount</span>
+                <span>Destination</span>
+                <span className={styles.mRight}>Status</span>
+              </div>
+              {SAMPLE_MANIFEST.map((r, i) => {
+                const cleared = r.status === "Cleared";
+                return (
+                  <div key={i} className={styles.mRow}>
+                    <span data-label="Origin">{r.origin}</span>
+                    <span data-label="Amount" className={styles.mMono}>
+                      {r.amount}
+                    </span>
+                    <span data-label="Destination" className={styles.mMono}>
+                      {r.destination}
+                    </span>
+                    <span
+                      data-label="Status"
+                      className={`${styles.mRight} ${styles.mStatus} ${
+                        cleared ? styles.mCleared : styles.mTransit
+                      }`}
                     >
-                      {short(s.txHash)} — tx
-                    </a>
-                  </span>
-                  <span className={styles.cellRoute} data-label="Route">{s.route}</span>
-                  <span data-label="Cargo">{s.cargo}</span>
-                  <span className={styles.cellConsignee} data-label="Consignee">{s.consignee}</span>
-                  <span
-                    className={`${styles.cellStatus}${held ? ` ${styles.statusHeld}` : ""}`}
-                    data-label="Status"
-                  >
-                    {held ? "HELD" : "CLEARED"}
-                  </span>
-                </div>
-              );
-            })
-          )}
+                      {r.status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <a
+              href={ROUTER_ON_ARCSCAN}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.liveLink}
+            >
+              View live data on Arcscan →
+            </a>
+          </div>
         </div>
       </section>
 
-      {/* ---------- how a shipment clears ---------- */}
+      {/* ---------- architecture ---------- */}
       <section id="architecture" className={styles.section}>
-        <div className={styles.sectionKicker}>Architecture</div>
-        <h2 className={styles.sectionTitle} style={{ marginBottom: 32 }}>
-          How a shipment clears
-        </h2>
+        <Blob id="blobArch" className={styles.blobArch} />
+        <div className={styles.sectionInner}>
+          <span className={styles.eyebrow}>
+            <span className={styles.eyebrowNum}>02</span> / ARCHITECTURE
+          </span>
+          <h2 className={styles.sectionTitle}>Four steps, one ledger.</h2>
+          <p className={styles.sectionLede}>
+            An immutable core — registry, ledger, payout engine — with a thin periphery that lands
+            mints and quarantines anything malformed. Funds never sit anywhere they can be
+            mis-credited.
+          </p>
 
-        <div className={styles.steps}>
-          <div className={styles.step}>
-            <span className={styles.stepCode}>DEP-01</span>
-            <span className={styles.stepName}>Deposit</span>
-            <span className={styles.stepDesc}>
-              USDC lands on Base, Ethereum, or Arbitrum. Portage registers the deposit against
-              Circle Gateway&apos;s unified balance — no bridging, no wrapped assets.
-            </span>
-          </div>
-          <div className={styles.step}>
-            <span className={styles.stepCode}>CON-02</span>
-            <span className={styles.stepName}>Consolidate</span>
-            <span className={styles.stepDesc}>
-              Deposits across chains are batched into a single manifest entry, netted against
-              pending payouts, and queued for the next clearing window.
-            </span>
-          </div>
-          <div className={styles.step}>
-            <span className={styles.stepCode}>CLR-03</span>
-            <span className={styles.stepName}>Clear</span>
-            <span className={styles.stepDesc}>
-              Arc executes <span className={styles.accent}>executeMintWithMeta</span>, minting the
-              consolidated balance with an attached metadata trail linking back to every origin
-              deposit.
-            </span>
-          </div>
-          <div className={`${styles.step} ${styles.stepLast}`}>
-            <span className={styles.stepCode}>REL-04</span>
-            <span className={styles.stepName}>Release</span>
-            <span className={styles.stepDesc}>
-              A single USDC payout is released to the consignee, with the full route manifest
-              attached for reconciliation.
-            </span>
+          <div className={styles.stepGrid}>
+            <article className={styles.card}>
+              <span className={styles.stepCode}>DEP-01</span>
+              <h3 className={styles.stepName}>Deposit</h3>
+              <p className={styles.cardBody}>
+                USDC lands on a source chain and is registered against Circle Gateway&apos;s unified
+                balance.
+              </p>
+            </article>
+            <article className={styles.card}>
+              <span className={styles.stepCode}>CON-02</span>
+              <h3 className={styles.stepName}>Consolidate</h3>
+              <p className={styles.cardBody}>
+                A signed burn intent binds the deposit&apos;s metadata to its spec hash, ready for
+                attestation.
+              </p>
+            </article>
+            <article className={styles.card}>
+              <span className={styles.stepCode}>CLR-03</span>
+              <h3 className={styles.stepName}>Clear</h3>
+              <p className={styles.cardBody}>
+                Arc runs <code className={styles.inlineCode}>executeMintWithMeta</code>, minting and
+                crediting the ledger in one atomic call.
+              </p>
+            </article>
+            <article className={`${styles.card} ${styles.cardAccent}`}>
+              <span className={styles.stepCode}>REL-04</span>
+              <h3 className={styles.stepName}>Release</h3>
+              <p className={styles.cardBody}>
+                The payout engine releases a single settled USDC payment to the consignee, gated by
+                the app&apos;s controller.
+              </p>
+            </article>
           </div>
         </div>
       </section>
 
       {/* ---------- sdk ---------- */}
       <section id="sdk" className={styles.section}>
-        <div className={styles.sectionKicker}>Integration</div>
-        <h2 className={styles.sectionTitle} style={{ marginBottom: 28 }}>
-          Four calls to a cleared payout
-        </h2>
+        <Blob id="blobSdk" className={styles.blobSdk} />
+        <div className={styles.sectionInner}>
+          <span className={styles.eyebrow}>
+            <span className={styles.eyebrowNum}>03</span> / SDK
+          </span>
+          <div className={styles.sdkGrid}>
+            <div className={styles.sdkCopy}>
+              <h2 className={styles.sectionTitle}>Four calls to a cleared payout.</h2>
+              <p className={styles.sectionLede}>
+                <code className={styles.inlineCode}>@erhnysr/portage-sdk</code> is a non-custodial
+                TypeScript client. Users sign burn intents with their own wallet; the SDK never
+                holds keys. Amounts are atomic USDC units.
+              </p>
+              <a
+                href={SDK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.sdkDocsLink}
+              >
+                Read the SDK docs →
+              </a>
+            </div>
 
-        <div className={styles.sdkCard}>
-          <div className={styles.sdkCardHead}>
-            <span>payout.ts</span>
-            <span>portage-sdk@2.3.0</span>
+            <div className={styles.codeWindow}>
+              <div className={styles.codeBar}>
+                <span className={styles.dotRed} />
+                <span className={styles.dotAmber} />
+                <span className={styles.dotGreen} />
+                <span className={styles.codeFile}>consolidate.ts</span>
+              </div>
+              <pre className={styles.code}>
+                <code>
+                  {CODE.map((line, i) => (
+                    <span key={i} className={styles.codeLine}>
+                      {line.length === 0
+                        ? " "
+                        : line.map((tok, j) => (
+                            <span key={j} className={tokClass[tok.t]}>
+                              {tok.v}
+                            </span>
+                          ))}
+                      {"\n"}
+                    </span>
+                  ))}
+                </code>
+              </pre>
+            </div>
           </div>
-          <pre className={styles.code}>
-            <span className={styles.tokKw}>import</span> {"{ PortageClient, PortagePayouts }"}{" "}
-            <span className={styles.tokKw}>from</span>{" "}
-            <span className={styles.tokStr}>&quot;@portage/sdk&quot;</span>
-            {"\n\n"}
-            <span className={styles.tokKw}>const</span> client = <span className={styles.tokKw}>new</span>{" "}
-            PortageClient({"{ network: "}
-            <span className={styles.tokStr}>&quot;arc-mainnet&quot;</span>
-            {" }"})
-            {"\n\n"}
-            <span className={styles.tokCm}>
-              {"// DEP-01 — register an incoming deposit via the origin-chain wallet client"}
-            </span>
-            {"\n"}
-            <span className={styles.tokKw}>await</span> client.deposit(walletClient, {"{ chain: "}
-            <span className={styles.tokStr}>&quot;base&quot;</span>
-            {", amount: "}
-            <span className={styles.tokStr}>&quot;42500.00&quot;</span>
-            {" }"})
-            {"\n\n"}
-            <span className={styles.tokCm}>
-              {"// CON-02 — build and submit the consolidation intent across origins"}
-            </span>
-            {"\n"}
-            <span className={styles.tokKw}>const</span> intent = <span className={styles.tokKw}>await</span>{" "}
-            client.buildConsolidationIntent()
-            {"\n"}
-            <span className={styles.tokKw}>const</span> consolidation ={" "}
-            <span className={styles.tokKw}>await</span> client.submitConsolidation(intent)
-            {"\n\n"}
-            <span className={styles.tokCm}>{"// CLR-03 — clear on Arc with full metadata trail"}</span>
-            {"\n"}
-            <span className={styles.tokKw}>const</span> clearance = <span className={styles.tokKw}>await</span>{" "}
-            client.executeMintWithMeta(consolidation.id)
-            {"\n\n"}
-            <span className={styles.tokCm}>
-              {"// REL-04 — release the settled payout to the consignee"}
-            </span>
-            {"\n"}
-            <span className={styles.tokKw}>const</span> payouts = <span className={styles.tokKw}>new</span>{" "}
-            PortagePayouts({"{ network: "}
-            <span className={styles.tokStr}>&quot;arc-mainnet&quot;</span>
-            {" }"})
-            {"\n"}
-            <span className={styles.tokKw}>await</span> payouts.payout({"{ referenceId: clearance.id, recipient: "}
-            <span className={styles.tokStr}>&quot;0x71c9...4a2f&quot;</span>
-            {", amount: "}
-            <span className={styles.tokStr}>&quot;42500.00&quot;</span>
-            {" }"})
-          </pre>
         </div>
       </section>
 
-      {/* ---------- footer ---------- */}
+      {/* ---------- footer / metrics ---------- */}
       <footer className={styles.footer}>
-        <div className={styles.stats}>
-          <div>
-            <div className={styles.statNum}>81</div>
-            <div className={styles.statLabel}>Tests passing</div>
+        <div className={styles.metrics}>
+          <div className={styles.metric}>
+            <div className={styles.metricNum}>232</div>
+            <div className={styles.metricLabel}>Tests passing</div>
           </div>
-          <div>
-            <div className={styles.statNum}>9</div>
-            <div className={styles.statLabel}>Invariants enforced</div>
+          <div className={styles.metric}>
+            <div className={styles.metricNum}>12</div>
+            <div className={styles.metricLabel}>Invariants enforced</div>
           </div>
-          <div>
-            <div className={styles.statNum}>0 / 65,000</div>
-            <div className={styles.statLabel}>Reverts across fuzz calls</div>
+          <div className={styles.metric}>
+            <div className={styles.metricNum}>
+              0 <span className={styles.metricOf}>/ 393,000</span>
+            </div>
+            <div className={styles.metricLabel}>Reverts · core solvency invariants</div>
           </div>
         </div>
 
-        <div className={styles.footerLegal}>
-          <span>
-            Portage is built on Arc. Arc™ is a trademark of Circle Internet Group, Inc. Portage is
-            an independent project and is not affiliated with or endorsed by Circle.
-          </span>
-          <span className={styles.copy}>© 2026 Portage</span>
+        <div className={styles.footerBottom}>
+          <a href="#top" className={styles.brand} aria-label="Portage home">
+            <Logo size={20} />
+            <span className={styles.wordmarkSm}>Portage</span>
+          </a>
+          <span className={styles.builtOn}>Built on Arc</span>
         </div>
+
+        <p className={styles.legal}>
+          Arc™ is a trademark of Circle Internet Group, Inc. Portage is an independent project and
+          is not affiliated with or endorsed by Circle. © 2026 Portage.
+        </p>
       </footer>
     </div>
   );
+}
+
+/* ---------- small inline icons for the trust strip ---------- */
+function TrustIcon({ kind }: { kind: "code" | "shield" | "star" | "check" }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  switch (kind) {
+    case "code":
+      return (
+        <svg {...common}>
+          <path d="M8 6l-6 6 6 6" />
+          <path d="M16 6l6 6-6 6" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...common}>
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg {...common}>
+          <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.8 6.6 20l1-6.1L3.2 9.5l6.1-.9z" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M8.5 12.5l2.5 2.5 4.5-5" />
+        </svg>
+      );
+  }
 }
