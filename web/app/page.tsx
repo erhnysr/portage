@@ -1,8 +1,11 @@
 import styles from "./page.module.css";
-import { ARC_EXPLORER_ADDRESS, ROUTER_ADDRESS } from "../lib/portage";
+import { ARC_EXPLORER_ADDRESS, ARC_EXPLORER_TX, ROUTER_ADDRESS, short } from "../lib/portage";
+import { getShipments } from "../lib/shipments";
 
-// Static marketing page — no data fetching. The live on-chain manifest is one click away
-// via the "View live data on Arcscan" link (the Router's real address on Arc Testnet).
+// The manifest is real on-chain proof: it reads the Router's Credited/Quarantined events
+// from Arc Testnet. ISR — revalidate the (server-side, windowed) scan at most once a minute;
+// between revalidations every visitor is served cached HTML.
+export const revalidate = 60;
 
 const REPO_URL = "https://github.com/erhnysr/portage";
 const SDK_URL = "https://www.npmjs.com/package/@erhnysr/portage-sdk";
@@ -43,13 +46,6 @@ function Blob({ id, className }: { id: string; className: string }) {
   );
 }
 
-// Illustrative manifest rows — clearly labelled sample data, NOT live on-chain reads.
-const SAMPLE_MANIFEST = [
-  { origin: "Base Sepolia", amount: "5.00 USDC", destination: "coliseum / arena-1", status: "Cleared" },
-  { origin: "Base Sepolia", amount: "12.00 USDC", destination: "coliseum / arena-1", status: "Cleared" },
-  { origin: "Base Sepolia", amount: "3.50 USDC", destination: "coliseum / arena-2", status: "In transit" },
-] as const;
-
 // SDK code sample — faithful to the real @erhnysr/portage-sdk API (see sdk/README.md).
 type Tok = { t: "kw" | "str" | "num" | "com" | "fn" | "plain"; v: string };
 const CODE: Tok[][] = [
@@ -81,7 +77,9 @@ const tokClass: Record<Tok["t"], string> = {
   plain: styles.tPlain,
 };
 
-export default function Home() {
+export default async function Home() {
+  const manifest = await getShipments();
+
   return (
     <div className={styles.page}>
       {/* ---------- nav ---------- */}
@@ -115,7 +113,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className={styles.launch}
             >
-              Launch app
+              View on GitHub
             </a>
           </div>
         </div>
@@ -160,9 +158,10 @@ export default function Home() {
             One ledger <span className={styles.grad}>clears.</span>
           </h1>
           <p className={styles.heroSub}>
-            Portage consolidates USDC arriving on any chain into a single per-app balance on Arc
-            through Circle Gateway&apos;s unified balance — then releases it as one settled payout,
-            on demand.
+            Apps that collect USDC across chains have to reconcile balances everywhere before they
+            can pay anyone out. Portage routes each deposit through Circle Gateway into a single
+            per-app balance on Arc — so you clear and pay from one ledger, with no bridging and no
+            wrapped tokens.
           </p>
           <div className={styles.heroCtas}>
             <a href="#proof" className={styles.btnPrimary}>
@@ -255,37 +254,73 @@ export default function Home() {
           <div className={styles.manifest}>
             <div className={styles.manifestHead}>
               <span className={styles.manifestTitle}>Manifest</span>
-              <span className={styles.sampleTag}>sample for illustration</span>
+              {manifest.ok && manifest.shipments.length > 0 ? (
+                <span className={styles.liveChip}>
+                  <span className={styles.liveDot} aria-hidden="true" />
+                  Live · Arc Testnet
+                </span>
+              ) : null}
             </div>
             <div className={styles.manifestTable}>
               <div className={`${styles.mRow} ${styles.mHead}`}>
-                <span>Origin</span>
-                <span>Amount</span>
-                <span>Destination</span>
+                <span>Waybill</span>
+                <span>Cargo</span>
+                <span>Consignee</span>
                 <span className={styles.mRight}>Status</span>
               </div>
-              {SAMPLE_MANIFEST.map((r, i) => {
-                const cleared = r.status === "Cleared";
-                return (
-                  <div key={i} className={styles.mRow}>
-                    <span data-label="Origin">{r.origin}</span>
-                    <span data-label="Amount" className={styles.mMono}>
-                      {r.amount}
-                    </span>
-                    <span data-label="Destination" className={styles.mMono}>
-                      {r.destination}
-                    </span>
-                    <span
-                      data-label="Status"
-                      className={`${styles.mRight} ${styles.mStatus} ${
-                        cleared ? styles.mCleared : styles.mTransit
-                      }`}
-                    >
-                      {r.status}
-                    </span>
-                  </div>
-                );
-              })}
+
+              {!manifest.ok ? (
+                <div className={styles.mNotice}>
+                  Live manifest temporarily unavailable — read the Router directly on{" "}
+                  <a
+                    className={styles.mNoticeLink}
+                    href={ROUTER_ON_ARCSCAN}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Arcscan
+                  </a>
+                  .
+                </div>
+              ) : manifest.shipments.length === 0 ? (
+                <div className={styles.mNotice}>
+                  No cleared shipments yet — this table fills from the Router&apos;s on-chain{" "}
+                  <code className={styles.inlineCode}>Credited</code> events. Check back after the
+                  next deposit.
+                </div>
+              ) : (
+                manifest.shipments.map((s) => {
+                  const held = s.status === "held";
+                  return (
+                    <div key={s.id} className={styles.mRow}>
+                      <span data-label="Waybill" className={styles.mMono}>
+                        <a
+                          className={styles.mLink}
+                          href={`${ARC_EXPLORER_TX}${s.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {short(s.txHash)} — tx
+                        </a>
+                      </span>
+                      <span data-label="Cargo" className={styles.mMono}>
+                        {s.cargo}
+                      </span>
+                      <span data-label="Consignee" className={styles.mMono}>
+                        {s.consignee}
+                      </span>
+                      <span
+                        data-label="Status"
+                        className={`${styles.mRight} ${styles.mStatus} ${
+                          held ? styles.mHeld : styles.mCleared
+                        }`}
+                      >
+                        {held ? "HELD" : "CLEARED"}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
             <a
               href={ROUTER_ON_ARCSCAN}

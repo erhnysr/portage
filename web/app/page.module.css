@@ -471,15 +471,28 @@
   font-size: 16px;
   color: var(--ink);
 }
-.sampleTag {
+/* live indicator — shown only when the table holds real on-chain rows */
+.liveChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--ff-mono);
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--faint);
-  border: 1px dashed var(--border-strong);
-  border-radius: 6px;
-  padding: 3px 8px;
+  color: #0e7f52;
+  border: 1px solid rgba(14, 127, 82, 0.25);
+  background: rgba(14, 127, 82, 0.06);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15), 0 0 6px rgba(22, 163, 74, 0.6);
+  animation: portage-pulse 2.4s ease-in-out infinite;
 }
 .manifestTable {
   font-family: var(--ff-mono);
@@ -487,7 +500,7 @@
 }
 .mRow {
   display: grid;
-  grid-template-columns: 1.1fr 1fr 1.6fr 0.9fr;
+  grid-template-columns: 1.15fr 1.5fr 1.5fr 0.7fr;
   align-items: center;
   gap: 16px;
   padding: 14px 20px;
@@ -506,6 +519,15 @@
 .mMono {
   color: var(--text);
 }
+.mLink {
+  color: var(--blue);
+  border-bottom: 1px dotted rgba(39, 117, 202, 0.4);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mLink:hover {
+  color: var(--navy);
+  border-bottom-color: var(--navy);
+}
 .mRight {
   text-align: right;
 }
@@ -515,8 +537,23 @@
 .mCleared {
   color: #0e7f52;
 }
-.mTransit {
+.mHeld {
+  color: #b45309;
+}
+/* empty / error state: one full-width note inside the table shell — never fake rows */
+.mNotice {
+  padding: 20px;
+  color: var(--muted);
+  font-family: var(--ff-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.mNoticeLink {
   color: var(--blue);
+  border-bottom: 1px dotted rgba(39, 117, 202, 0.4);
+}
+.mNoticeLink:hover {
+  color: var(--navy);
 }
 .liveLink {
   display: block;

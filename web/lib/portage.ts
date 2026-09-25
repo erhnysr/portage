@@ -34,15 +34,18 @@ const ARC_TESTNET: PortageNetwork = {
   explorerTx: "https://testnet.arcscan.app/tx/",
   explorerAddress: "https://testnet.arcscan.app/address/",
   // Default Arc testnet RPC when ARC_RPC_URL is not set. Set a dedicated key via env to
-  // override (recommended for prod). Public keyless endpoints were benchmarked against the
-  // full two-anchor workload (~90 getLogs, needs archive history back to the deploy era):
-  //   - drpc      → the ONLY keyless endpoint that completes it (~8-13s). Chosen default.
-  //   - arc.io    → full history, but caps request RATE; fails after ~2 windows keyless.
-  //   - quicknode → full history, but caps request RATE; fails after ~1 window keyless.
-  //   - blockdaemon → DISQUALIFIED: pruned node, returns code 4444 "pruned history
-  //     unavailable" for deploy-era blocks. It cannot serve the floor anchor at all — do
-  //     not use it here regardless of rate limits.
-  defaultRpcUrl: "https://rpc.drpc.testnet.arc.io",
+  // override (STRONGLY recommended for prod — keyless endpoints rate-limit the scan).
+  // Endpoint history for the two-anchor getLogs workload (archive history back to deploy):
+  //   - rpc.testnet.arc.network → CURRENT default. Serves full history and 10k-block
+  //     getLogs windows. Rate-limits under rapid fire (code -32005 / "Request exceeds
+  //     defined limit"), so shipments.ts scans SEQUENTIALLY with backoff + per-window
+  //     tolerance; it still completes keyless (slower), and returns the honest error
+  //     state rather than fake rows if the limiter wins.
+  //   - drpc → NO LONGER USABLE keyless: its free plan now caps eth_getLogs at a few
+  //     hundred blocks ("ranges over 10000 blocks are not supported on free plan"), so
+  //     the 10k-window scan cannot run there anymore. Was the old default; regressed.
+  //   - blockdaemon → DISQUALIFIED: pruned node (code 4444) for deploy-era blocks.
+  defaultRpcUrl: "https://rpc.testnet.arc.network",
   // PortageRouter on Arc testnet. NOT redeployed since the original Deploy.s.sol run,
   // so its deploy block below is the correct floor for its event history.
   router: "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B",
