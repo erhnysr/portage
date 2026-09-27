@@ -87,7 +87,10 @@ export default async function Home() {
         <div className={styles.navInner}>
           <a href="#top" className={styles.brand} aria-label="Portage home">
             <Logo size={30} />
-            <span className={styles.wordmark}>Portage</span>
+            <span className={styles.wordmark} aria-label="Portage">
+              <span className={styles.wordmarkStrong}>Port</span>
+              <span className={styles.wordmarkSoft}>age</span>
+            </span>
           </a>
 
           <div className={styles.navRight}>

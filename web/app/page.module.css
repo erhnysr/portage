@@ -54,10 +54,17 @@
 }
 .wordmark {
   font-family: var(--ff-display);
-  font-weight: 700;
   font-size: 21px;
-  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.wordmarkStrong {
+  font-weight: 700;
   color: var(--ink);
+}
+.wordmarkSoft {
+  font-weight: 500;
+  color: var(--muted);
 }
 .navRight {
   display: flex;
@@ -505,9 +512,14 @@
   gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
 }
 .mRow:last-of-type {
   border-bottom: none;
+}
+/* subtle row highlight on hover — header row (.mHead) excluded */
+.mRow:not(.mHead):hover {
+  background: var(--tint);
 }
 .mHead {
   color: var(--faint);
@@ -632,6 +644,12 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 30px 60px -30px rgba(11, 13, 18, 0.6);
   overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.codeWindow:hover {
+  transform: translateY(-4px);
+  border-color: rgba(124, 92, 252, 0.5);
+  box-shadow: 0 44px 80px -30px rgba(39, 117, 202, 0.5), 0 0 0 1px rgba(124, 92, 252, 0.18);
 }
 .codeBar {
   display: flex;
