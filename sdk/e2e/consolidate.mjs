@@ -93,7 +93,10 @@ const [baseUsdc, baseEth, arcGas] = await Promise.all([
   basePublic.getBalance({ address: account.address }),
   arcPublic.getBalance({ address: account.address }),
 ]);
-log(`preflight: Base USDC=${formatUnits(baseUsdc, 6)}  Base ETH=${formatUnits(baseEth, 18)}  Arc gas(USDC)=${formatUnits(arcGas, 6)}`);
+log(`preflight balances:`);
+log(`  Base Sepolia USDC : ${formatUnits(baseUsdc, 6)} USDC   (need >= ${formatUnits(depositAmount, 6)})`);
+log(`  Base Sepolia ETH  : ${formatUnits(baseEth, 18)} ETH   (gas for approve + deposit)`);
+log(`  Arc gas balance   : ${formatUnits(arcGas, 18)}   (gas for the mint tx)`);
 if (baseUsdc < depositAmount) throw new Error("test EOA has insufficient Base Sepolia USDC — fund via faucet.circle.com");
 if (baseEth === 0n) throw new Error("test EOA has no Base Sepolia ETH for gas — fund via a Base Sepolia ETH faucet");
 if (arcGas === 0n) throw new Error("test EOA has no Arc USDC for gas — fund Arc Testnet USDC via faucet.circle.com");
@@ -102,7 +105,7 @@ const ledgerBefore = await portage.getAppBalance(appId, arenaAccount);
 log("ledger balance before:", formatUnits(ledgerBefore, 6), "USDC\n");
 
 // ---- 1. deposit into Gateway on Base Sepolia ----
-log("[1] approve + deposit to GatewayWallet on Base Sepolia...");
+log(`\n──▶ STEP 1/5  Deposit ${formatUnits(depositAmount, 6)} USDC into Circle Gateway on Base Sepolia`);
 const { approveTx, depositTx } = await portage.deposit(baseWallet, {
   chain: "baseSepolia",
   amount: depositAmount,
@@ -113,12 +116,12 @@ await basePublic.waitForTransactionReceipt({ hash: depositTx });
 log("    deposit tx:", depositTx, "(confirmed on-chain)\n");
 
 // ---- 1b. wait for Gateway to FINALIZE the deposit (off-chain balance lags on-chain) ----
-log("[1b] waiting for Gateway to reflect the deposit (finalization lag)...");
+log("    waiting for Gateway to finalize the deposit (off-chain balance lags on-chain)...");
 const available = await portage.waitForGatewayBalance(account.address, "baseSepolia", amount + maxFee);
 log("    Gateway available:", formatUnits(available, 6), "USDC (>= value+fee)\n");
 
 // ---- 2. build + sign the consolidation burn intent (empty hookData) + the meta binding ----
-log("[2] build + sign consolidation intent (empty hookData) and PayoutMeta binding...");
+log(`\n──▶ STEP 2/5  Build + sign the consolidation intent (burn intent + PayoutMeta binding)`);
 const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount, depositor: account.address, maxFee });
 const signature = await baseWallet.signTypedData({ account, ...intent.typedData });
 
@@ -129,7 +132,7 @@ log("    burn intent signed. salt:", intent.salt);
 log("    specHash:", specHash, "meta binding signed.\n");
 
 // ---- 3. submit to Gateway API (retry until the deposit is observed / attested) ----
-log("[3] submit to Gateway API (may retry until deposit finalizes)...");
+log(`\n──▶ STEP 3/5  Submit to the Circle Gateway API and wait for attestation`);
 let transfer;
 for (let i = 1; i <= 20; i++) {
   try {
@@ -159,7 +162,7 @@ if (!transfer?.attestation || transfer.attestation === "0x") throw new Error("no
 log("    attestation received. transferId:", transfer.transferId, "\n");
 
 // ---- 4. executeMintWithMeta on Arc (atomic mint + credit, meta authorized by depositor sig) ----
-log("[4] executeMintWithMeta on Arc (atomic mint + credit)...");
+log(`\n──▶ STEP 4/5  Clear on Arc — executeMintWithMeta (atomic mint + credit into the coliseum ledger)`);
 const mintTx = await portage.executeMintWithMeta(arcWallet, {
   attestation: transfer.attestation,
   signature: transfer.signature,
@@ -170,7 +173,7 @@ await arcPublic.waitForTransactionReceipt({ hash: mintTx });
 log("    mint tx:", mintTx, "(confirmed)\n");
 
 // ---- 5. verify ----
-log("[5] verify on Arc...");
+log(`\n──▶ STEP 5/5  Verify on Arc (ledger credit, router at rest, custody invariant)`);
 const ledgerAfter = await portage.getAppBalance(appId, arenaAccount);
 const appTotal = await portage.getAppTotal(appId);
 const routerUsdc = await arcPublic.readContract({
@@ -197,6 +200,11 @@ const ok =
   custody === appTotal;
 log("");
 log(ok ? "✅ E2E PASS: credited, router at rest = 0, custody == appTotal" : "❌ E2E CHECK FAILED — inspect above");
+
+log("\n🔗 On-chain proof (open in a browser for the recording):");
+log(`  mint tx : https://testnet.arcscan.app/tx/${mintTx}`);
+log(`  router  : https://testnet.arcscan.app/address/${PORTAGE_ARC_TESTNET.router}`);
+log(`  → this Credited event also appears in the live manifest at https://portage-landing.vercel.app after its ~60s revalidation.`);
 
 log("\nIndependent cast verification:");
 log(`  cast call ${PORTAGE_ARC_TESTNET.ledger} 'balanceOf(bytes32,bytes32)(uint256)' ${appId} ${arenaAccount} --rpc-url "$ARC_RPC_URL"`);
