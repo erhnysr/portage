@@ -723,41 +723,86 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
   margin-bottom: 44px;
+  justify-items: center;
 }
 .metric {
-  padding: 26px;
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  position: relative;
+  width: 100%;
+  max-width: 210px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(11, 13, 18, 0.04), 0 12px 28px -24px rgba(11, 13, 18, 0.3);
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease,
-    box-shadow 0.18s ease;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px var(--border), 0 12px 28px -24px rgba(11, 13, 18, 0.3);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+/* rotating dashed "seal" ring — a separate layer so the content stays fixed */
+.metric::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  border: 2px dashed var(--seal, var(--blue));
+  opacity: 0.75;
+  animation: sealSpin 16s linear infinite;
 }
 .metric:hover {
   transform: translateY(-4px);
-  border-color: var(--blue);
-  background: var(--tint);
-  box-shadow: 0 18px 40px -24px rgba(39, 117, 202, 0.45);
+  box-shadow: inset 0 0 0 1px var(--seal, var(--blue)), 0 18px 40px -24px rgba(11, 13, 18, 0.28);
+}
+.metricPurple {
+  --seal: var(--purple);
+}
+.metricBlue {
+  --seal: var(--blue);
+}
+.metricCyan {
+  --seal: var(--cyan);
+}
+@keyframes sealSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metric::before {
+    animation: none;
+  }
 }
 .metricNum {
+  position: relative;
+  z-index: 1;
   font-family: var(--ff-display);
   font-weight: 700;
-  font-size: 42px;
+  font-size: 40px;
+  line-height: 1;
   letter-spacing: -0.02em;
   color: var(--ink);
 }
 .metricOf {
-  font-size: 22px;
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
   color: var(--faint);
   font-weight: 500;
+  letter-spacing: 0;
 }
 .metricLabel {
-  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+  max-width: 130px;
   font-family: var(--ff-mono);
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1.35;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--seal, var(--muted));
 }
 .footerBottom {
   display: flex;

@@ -444,19 +444,19 @@ export default async function Home() {
       {/* ---------- footer / metrics ---------- */}
       <footer className={styles.footer}>
         <div className={styles.metrics}>
-          <div className={styles.metric}>
-            <div className={styles.metricNum}>232</div>
+          <div className={`${styles.metric} ${styles.metricPurple}`}>
             <div className={styles.metricLabel}>Tests passing</div>
+            <div className={styles.metricNum}>232</div>
           </div>
-          <div className={styles.metric}>
-            <div className={styles.metricNum}>12</div>
+          <div className={`${styles.metric} ${styles.metricBlue}`}>
             <div className={styles.metricLabel}>Invariants enforced</div>
+            <div className={styles.metricNum}>12</div>
           </div>
-          <div className={styles.metric}>
+          <div className={`${styles.metric} ${styles.metricCyan}`}>
+            <div className={styles.metricLabel}>Reverts · core solvency invariants</div>
             <div className={styles.metricNum}>
               0 <span className={styles.metricOf}>/ 393,000</span>
             </div>
-            <div className={styles.metricLabel}>Reverts · core solvency invariants</div>
           </div>
         </div>
 
