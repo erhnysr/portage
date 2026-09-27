@@ -71,8 +71,15 @@ a {
   html {
     scroll-behavior: auto;
   }
-  * {
-    animation: none !important;
-    transition: none !important;
+  /* Neutralize continuous/looping motion (e.g. the pulsing status dots) for users who
+     ask for reduced motion — but KEEP short, user-initiated hover transitions, which are
+     interaction feedback rather than the kind of large/auto motion this preference targets.
+     (An earlier blanket `transition: none !important` made every hover snap instantly and
+     read as "hovers don't work"; see hover-effect regression.) */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
