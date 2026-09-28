@@ -104,6 +104,28 @@
   background: rgba(34, 211, 238, 0.1);
   color: #0e7490;
 }
+.segInk:hover {
+  border-color: rgba(11, 13, 18, 0.3);
+  background: rgba(11, 13, 18, 0.04);
+  color: var(--ink);
+}
+/* current page: ink outline + brand-gradient underline */
+.segActive {
+  position: relative;
+  color: var(--ink);
+  border-color: rgba(11, 13, 18, 0.28);
+  background: #fff;
+}
+.segActive::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand-line);
+}
 .navDivider {
   width: 1px;
   height: 24px;

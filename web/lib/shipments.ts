@@ -1,13 +1,13 @@
 import "server-only";
 
-import { createPublicClient, http, type Log } from "viem";
+import { createPublicClient, decodeEventLog, http, type Hex, type Log } from "viem";
 import {
+  ARC_EXPLORER_API,
   CreditedEvent,
   QuarantinedEvent,
   DEFAULT_ARC_RPC_URL,
   FLOOR_WINDOWS,
   LOG_WINDOW,
-  MAX_ROWS,
   ROUTER_ADDRESS,
   ROUTER_DEPLOY_BLOCK,
   TIP_WINDOWS,
@@ -18,21 +18,32 @@ import {
   short,
 } from "./portage";
 
-// A single manifest entry, already shaped for the table (no bigints leak to the client).
+// A single manifest entry, already shaped for rendering (no bigints leak to the client).
 export type Shipment = {
-  id: string; // txHash:logIndex — stable React key + dedupe key across overlapping windows
+  id: string; // txHash:logIndex — stable React key + dedupe key across sources/windows
   status: "cleared" | "held";
   txHash: `0x${string}`;
   route: string;
-  cargo: string; // formatted USDC, or "—"
+  cargo: string; // formatted USDC (+ action), or "—"
   consignee: string;
   blockNumber: string; // stringified for serialization; parsed back to bigint only for sort
+  /** ISO block time when the source provides it (indexer), else null (RPC scan). */
+  timestamp: string | null;
+  /** Atomic USDC amount (6 decimals) as a decimal string. */
+  amount: string;
+  appId: string | null;
+  account: string | null;
+  action: number | null;
+  specHash: string | null;
+  referenceId: string | null;
+  /** QuarantineReason for held shipments. */
+  reason: number | null;
 };
 
 // Discriminated result so the component can branch on ok/empty/error explicitly and
-// never has to invent placeholder rows.
+// never has to invent placeholder rows. `source` says where the rows were read from.
 export type ShipmentsResult =
-  | { ok: true; shipments: Shipment[] }
+  | { ok: true; shipments: Shipment[]; source: "indexer" | "rpc" }
   | { ok: false };
 
 function client() {
@@ -82,6 +93,14 @@ function toShipment(log: RouterLog): Shipment | null {
       cargo,
       consignee,
       blockNumber: (log.blockNumber ?? 0n).toString(),
+      timestamp: null,
+      amount: (args.amount ?? 0n).toString(),
+      appId: args.appId ?? null,
+      account: args.account ?? null,
+      action,
+      specHash: args.specHash ?? null,
+      referenceId: args.referenceId ?? null,
+      reason: null,
     };
   }
   if (log.eventName === "Quarantined") {
@@ -95,6 +114,14 @@ function toShipment(log: RouterLog): Shipment | null {
       cargo: args.amount != null ? `${formatUsdc(args.amount)} USDC` : "—",
       consignee: quarantineReasonLabel(reason),
       blockNumber: (log.blockNumber ?? 0n).toString(),
+      timestamp: null,
+      amount: (args.amount ?? 0n).toString(),
+      appId: null,
+      account: null,
+      action: null,
+      specHash: args.specHash ?? null,
+      referenceId: null,
+      reason,
     };
   }
   return null;
@@ -170,11 +197,11 @@ function tipRanges(head: bigint): Array<[bigint, bigint]> {
  * found nothing AND at least one window failed — i.e. we never claim "no shipments" off a
  * degraded read, and never invent rows.
  */
-export async function getShipments(): Promise<ShipmentsResult> {
+async function scanRpc(): Promise<ShipmentsResult> {
   try {
     const publicClient = client();
     const head = await publicClient.getBlockNumber();
-    if (head < ROUTER_DEPLOY_BLOCK) return { ok: true, shipments: [] };
+    if (head < ROUTER_DEPLOY_BLOCK) return { ok: true, shipments: [], source: "rpc" };
 
     // Merge both anchors' windows; a Map keyed by range string drops any exact overlap so we
     // never issue the same getLogs twice when the two bands meet on a short chain.
@@ -201,15 +228,100 @@ export async function getShipments(): Promise<ShipmentsResult> {
     // nothing but some windows failed, the read was degraded → report unavailable instead.
     if (byId.size === 0 && failures > 0) return { ok: false };
 
-    const shipments = [...byId.values()]
-      .sort((a, b) => {
-        const d = BigInt(b.blockNumber) - BigInt(a.blockNumber);
-        return d > 0n ? 1 : d < 0n ? -1 : 0;
-      })
-      .slice(0, MAX_ROWS);
-
-    return { ok: true, shipments };
+    return { ok: true, shipments: sortNewestFirst([...byId.values()]), source: "rpc" };
   } catch {
     return { ok: false };
   }
 }
+
+function sortNewestFirst(rows: Shipment[]): Shipment[] {
+  return rows.sort((a, b) => {
+    const d = BigInt(b.blockNumber) - BigInt(a.blockNumber);
+    return d > 0n ? 1 : d < 0n ? -1 : 0;
+  });
+}
+
+// ---------------------------------------------------------------------------------------
+// Indexer path (primary). Arc's Blockscout explorer indexes every Router log, so one paged
+// REST call returns the Router's FULL history — unlike the bounded RPC scan above, which
+// only sees a band after deploy and ~150k blocks (~21h on Arc testnet) back from the tip.
+// We do NOT trust Blockscout's own decoding: each log's raw topics/data are decoded here
+// against the Router's event ABI, exactly as the RPC path does.
+// ---------------------------------------------------------------------------------------
+
+type BlockscoutLog = {
+  topics: (string | null)[];
+  data: string;
+  index: number;
+  block_number: number;
+  block_timestamp: string | null;
+  transaction_hash: `0x${string}`;
+};
+type BlockscoutPage = { items: BlockscoutLog[]; next_page_params: Record<string, string | number> | null };
+
+const INDEXER_MAX_PAGES = 20; // 50 logs/page → ample for a testnet Router; bounded either way
+
+function fromIndexerLog(item: BlockscoutLog): Shipment | null {
+  const topics = item.topics.filter((t): t is string => typeof t === "string") as [Hex, ...Hex[]];
+  if (topics.length === 0) return null;
+  let decoded;
+  try {
+    decoded = decodeEventLog({
+      abi: [CreditedEvent, QuarantinedEvent],
+      topics,
+      data: item.data as Hex,
+    });
+  } catch {
+    return null; // not a manifest event (ownership, forwarder updates, …)
+  }
+  const shaped = toShipment({
+    ...decoded,
+    transactionHash: item.transaction_hash,
+    logIndex: item.index,
+    blockNumber: BigInt(item.block_number),
+  } as unknown as RouterLog);
+  if (!shaped) return null;
+  return { ...shaped, timestamp: item.block_timestamp ?? null };
+}
+
+async function readIndexer(): Promise<ShipmentsResult> {
+  const base = `${ARC_EXPLORER_API}/addresses/${ROUTER_ADDRESS}/logs`;
+  const rows: Shipment[] = [];
+  let query = "";
+  for (let page = 0; page < INDEXER_MAX_PAGES; page++) {
+    const res = await fetch(base + query, {
+      headers: { accept: "application/json" },
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) throw new Error(`indexer ${res.status}`);
+    const body = (await res.json()) as BlockscoutPage;
+    if (!Array.isArray(body.items)) throw new Error("indexer: unexpected shape");
+    for (const item of body.items) {
+      const s = fromIndexerLog(item);
+      if (s) rows.push(s);
+    }
+    if (!body.next_page_params) break;
+    query = "?" + new URLSearchParams(
+      Object.entries(body.next_page_params).map(([k, v]) => [k, String(v)]),
+    ).toString();
+  }
+  return { ok: true, shipments: sortNewestFirst(rows), source: "indexer" };
+}
+
+/**
+ * All Router shipments, newest first. Reads the indexer (full history, with block times);
+ * if that fails, falls back to the bounded direct-RPC scan. `limit` trims the result.
+ */
+export async function getShipments(opts: { limit?: number } = {}): Promise<ShipmentsResult> {
+  let result: ShipmentsResult;
+  try {
+    result = await readIndexer();
+  } catch {
+    result = await scanRpc();
+  }
+  if (result.ok && opts.limit != null) {
+    return { ...result, shipments: result.shipments.slice(0, opts.limit) };
+  }
+  return result;
+}
+

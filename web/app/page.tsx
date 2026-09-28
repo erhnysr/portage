@@ -1,5 +1,6 @@
 import styles from "./page.module.css";
-import { ARC_EXPLORER_ADDRESS, ARC_EXPLORER_TX, ROUTER_ADDRESS, short } from "../lib/portage";
+import { Logo, SiteNav } from "../components/SiteNav";
+import { ARC_EXPLORER_ADDRESS, MAX_ROWS, ROUTER_ADDRESS, short } from "../lib/portage";
 import { getShipments } from "../lib/shipments";
 
 // The manifest is real on-chain proof: it reads the Router's Credited/Quarantined events
@@ -7,21 +8,8 @@ import { getShipments } from "../lib/shipments";
 // between revalidations every visitor is served cached HTML.
 export const revalidate = 60;
 
-const REPO_URL = "https://github.com/erhnysr/portage";
 const SDK_URL = "https://www.npmjs.com/package/@erhnysr/portage-sdk";
 const ROUTER_ON_ARCSCAN = `${ARC_EXPLORER_ADDRESS}${ROUTER_ADDRESS}`;
-
-/* ---------- brand mark: three converging lines + ink block, drawn straight on the ground ---------- */
-function Logo({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 88 88" fill="none" aria-hidden="true">
-      <rect x="40" y="30" width="34" height="28" rx="6" fill="#0B0D12" />
-      <path d="M14 18 L40 44" stroke="#7C5CFC" strokeWidth="8" strokeLinecap="round" />
-      <path d="M14 44 L40 44" stroke="#2775CA" strokeWidth="8" strokeLinecap="round" />
-      <path d="M14 70 L40 44" stroke="#22D3EE" strokeWidth="8" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 /* ---------- blurred brand blob for section backgrounds (z-index:0; content sits at z-index:1) ---------- */
 function Blob({ id, className }: { id: string; className: string }) {
@@ -78,49 +66,11 @@ const tokClass: Record<Tok["t"], string> = {
 };
 
 export default async function Home() {
-  const manifest = await getShipments();
+  const manifest = await getShipments({ limit: MAX_ROWS });
 
   return (
     <div className={styles.page}>
-      {/* ---------- nav ---------- */}
-      <nav className={styles.nav}>
-        <div className={styles.navInner}>
-          <a href="#top" className={styles.brand} aria-label="Portage home">
-            <Logo size={30} />
-            <span className={styles.wordmark} aria-label="Portage">
-              <span className={styles.wordmarkStrong}>Port</span>
-              <span className={styles.wordmarkSoft}>age</span>
-            </span>
-          </a>
-
-          <div className={styles.navRight}>
-            <div className={styles.segments}>
-              <a href="#proof" className={`${styles.segment} ${styles.segPurple}`}>
-                Proof
-              </a>
-              <a href="#architecture" className={`${styles.segment} ${styles.segBlue}`}>
-                Architecture
-              </a>
-              <a href="#sdk" className={`${styles.segment} ${styles.segCyan}`}>
-                SDK
-              </a>
-            </div>
-            <span className={styles.navDivider} aria-hidden="true" />
-            <span className={styles.statusPill}>
-              <span className={styles.statusDot} aria-hidden="true" />
-              Arc Testnet
-            </span>
-            <a
-              href={REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.launch}
-            >
-              View on GitHub
-            </a>
-          </div>
-        </div>
-      </nav>
+      <SiteNav active="home" />
 
       {/* ---------- hero ---------- */}
       <header id="top" className={styles.hero}>
@@ -281,7 +231,7 @@ export default async function Home() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Arcscan
+                    the Arc explorer
                   </a>
                   .
                 </div>
@@ -297,13 +247,8 @@ export default async function Home() {
                   return (
                     <div key={s.id} className={styles.mRow}>
                       <span data-label="Waybill" className={styles.mMono}>
-                        <a
-                          className={styles.mLink}
-                          href={`${ARC_EXPLORER_TX}${s.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {short(s.txHash)} — tx
+                        <a className={styles.mLink} href={`/explorer/${s.txHash}`}>
+                          {short(s.txHash)} — verify
                         </a>
                       </span>
                       <span data-label="Cargo" className={styles.mMono}>
@@ -325,13 +270,8 @@ export default async function Home() {
                 })
               )}
             </div>
-            <a
-              href={ROUTER_ON_ARCSCAN}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.liveLink}
-            >
-              View live data on Arcscan →
+            <a href="/explorer" className={styles.liveLink}>
+              Open the explorer — every shipment, independently verified →
             </a>
           </div>
         </div>
@@ -461,7 +401,7 @@ export default async function Home() {
         </div>
 
         <div className={styles.footerBottom}>
-          <a href="#top" className={styles.brand} aria-label="Portage home">
+          <a href="/" className={styles.brand} aria-label="Portage home">
             <Logo size={20} />
             <span className={styles.wordmarkSm}>Portage</span>
           </a>

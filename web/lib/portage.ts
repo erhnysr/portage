@@ -21,6 +21,8 @@ export interface PortageNetwork {
   explorerTx: string;
   /** Blockscout explorer base for addresses, e.g. `${explorerAddress}<addr>`. */
   explorerAddress: string;
+  /** Blockscout REST API (v2) base — the indexed, full-history source for Router events. */
+  explorerApi: string;
   /** Fallback Arc RPC when ARC_RPC_URL is not set. */
   defaultRpcUrl: string;
   /** PortageRouter address on this network. */
@@ -31,8 +33,11 @@ export interface PortageNetwork {
 
 const ARC_TESTNET: PortageNetwork = {
   chainId: 5042002,
-  explorerTx: "https://testnet.arcscan.app/tx/",
-  explorerAddress: "https://testnet.arcscan.app/address/",
+  // testnet.arcscan.app now 301-redirects to explorer.testnet.arc.io (same Blockscout
+  // instance); link to the canonical host directly.
+  explorerTx: "https://explorer.testnet.arc.io/tx/",
+  explorerAddress: "https://explorer.testnet.arc.io/address/",
+  explorerApi: "https://explorer.testnet.arc.io/api/v2",
   // Default Arc testnet RPC when ARC_RPC_URL is not set. Set a dedicated key via env to
   // override (STRONGLY recommended for prod — keyless endpoints rate-limit the scan).
   // Endpoint history for the two-anchor getLogs workload (archive history back to deploy):
@@ -90,6 +95,7 @@ export const ARC_EXPLORER_ADDRESS = NETWORK.explorerAddress;
 export const DEFAULT_ARC_RPC_URL = NETWORK.defaultRpcUrl;
 export const ROUTER_ADDRESS = NETWORK.router;
 export const ROUTER_DEPLOY_BLOCK = NETWORK.routerDeployBlock;
+export const ARC_EXPLORER_API = NETWORK.explorerApi;
 
 // eth_getLogs window: Arc RPC rejects ranges wider than ~10k blocks, so we page.
 export const LOG_WINDOW = 10000n;
@@ -149,4 +155,29 @@ export function formatUsdc(atomic: bigint): string {
 // Short 0x… form for a hash/address (8 hex chars after the prefix).
 export function short(hex: string): string {
   return `${hex.slice(0, 10)}`;
+}
+
+// Circle Gateway / CCTP domain ids → chain. Only domains Portage can actually see in an
+// attestation are labelled; anything else renders as "Domain N" rather than a guess.
+export type DomainInfo = { name: string; explorerAddress?: string };
+export const GATEWAY_DOMAINS: Record<number, DomainInfo> = {
+  6: { name: "Base Sepolia", explorerAddress: "https://sepolia.basescan.org/address/" },
+  26: { name: "Arc Testnet", explorerAddress: "https://explorer.testnet.arc.io/address/" },
+};
+
+export function domainName(domain: number): string {
+  return GATEWAY_DOMAINS[domain]?.name ?? `Domain ${domain}`;
+}
+
+// Full USDC amount (6 decimals), trailing zeros trimmed but at least 2 fraction digits.
+export function formatUsdcFull(atomic: bigint): string {
+  const whole = atomic / 1_000_000n;
+  let frac = (atomic % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  if (frac.length < 2) frac = frac.padEnd(2, "0");
+  return `${whole.toString()}.${frac}`;
+}
+
+// bytes32 that left-pads a 20-byte address → the address (checksum-free, lowercase).
+export function bytes32ToAddress(b: string): `0x${string}` {
+  return `0x${b.slice(-40)}` as `0x${string}`;
 }
