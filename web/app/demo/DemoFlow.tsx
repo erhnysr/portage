@@ -61,7 +61,17 @@ type Balances = {
   arcGas: bigint; // 18-decimal native
 };
 
-type Pending = { depositTx: Hex; need: string; at: number };
+type Pending = {
+  depositTx: Hex;
+  need: string;
+  at: number;
+  /** Base Sepolia block holding the deposit, and how far Circle had processed when we started. */
+  depositBlock?: string;
+  startProcessed?: string;
+};
+
+// Base Sepolia produces a block every ~2 s — used only to turn a block gap into an ETA.
+const BASE_BLOCK_SECONDS = 2;
 
 const USDC_BASE = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
 const MIN_AMOUNT = parseUnits("0.1", 6);
@@ -124,6 +134,7 @@ export default function DemoFlow() {
   const [mintTx, setMintTx] = useState<Hex | null>(null);
   const [indexed, setIndexed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [processed, setProcessed] = useState<bigint | null>(null);
   const busy = useRef(false);
 
   useEffect(() => setHasWallet(typeof window !== "undefined" && !!window.ethereum), []);
@@ -181,6 +192,25 @@ export default function DemoFlow() {
     }, phase === "finalizing" ? 8000 : 20000);
     return () => clearInterval(id);
   }, [address, phase, refresh]);
+
+  // How far Circle Gateway has processed Base Sepolia (GET /v1/info → processedHeight).
+  useEffect(() => {
+    if (phase !== "finalizing") return;
+    let stop = false;
+    const tick = async () => {
+      try {
+        const info = (await gatewayApi.getInfo()) as { domains?: { domain: number; processedHeight?: string }[] };
+        const h = info.domains?.find((d) => d.domain === SOURCES.baseSepolia.domain)?.processedHeight;
+        if (!stop && h) setProcessed(BigInt(h));
+      } catch {}
+    };
+    tick();
+    const id = setInterval(tick, 8000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [phase]);
 
   // Finality watcher: once Gateway credits the deposit, the flow unlocks by itself.
   useEffect(() => {
@@ -264,8 +294,19 @@ export default function DemoFlow() {
         // generic PublicClient parameter; at runtime it is the same viem client.
         sourcePublicClient: basePublic as unknown as Parameters<typeof portage.deposit>[1]["sourcePublicClient"],
       });
-      await basePublic.waitForTransactionReceipt({ hash: depositTx });
-      const p: Pending = { depositTx, need: need.toString(), at: Date.now() };
+      const receipt = await basePublic.waitForTransactionReceipt({ hash: depositTx });
+      let startProcessed: string | undefined;
+      try {
+        const info = (await gatewayApi.getInfo()) as { domains?: { domain: number; processedHeight?: string }[] };
+        startProcessed = info.domains?.find((d) => d.domain === SOURCES.baseSepolia.domain)?.processedHeight;
+      } catch {}
+      const p: Pending = {
+        depositTx,
+        need: need.toString(),
+        at: Date.now(),
+        depositBlock: receipt.blockNumber.toString(),
+        startProcessed,
+      };
       store.set(pendingKey(address), JSON.stringify(p));
       setPending(p);
       await refresh(address);
@@ -421,19 +462,7 @@ export default function DemoFlow() {
                 {st.state === "active" && working ? <span className={s.spinner} aria-label="in progress" /> : null}
               </div>
               <p className={s.stepBody}>{st.body}</p>
-              {i === 1 && phase === "finalizing" ? (
-                <p className={s.timer}>
-                  Waiting for finality · {Math.floor(elapsed / 60)}m {String(elapsed % 60).padStart(2, "0")}s
-                  {pending ? (
-                    <>
-                      {" · "}
-                      <a className={s.link} href={`https://sepolia.basescan.org/tx/${pending.depositTx}`} target="_blank" rel="noopener noreferrer">
-                        deposit tx ↗
-                      </a>
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
+              {i === 1 && phase === "finalizing" ? <Finality pending={pending} processed={processed} elapsed={elapsed} /> : null}
             </div>
           </li>
         ))}
@@ -634,4 +663,42 @@ function phaseLabel(p: Phase): string {
     default:
       return "Working…";
   }
+}
+
+function Finality({ pending, processed, elapsed }: { pending: Pending | null; processed: bigint | null; elapsed: number }) {
+  const dep = pending?.depositBlock ? BigInt(pending.depositBlock) : null;
+  const start = pending?.startProcessed ? BigInt(pending.startProcessed) : null;
+  const left = dep != null && processed != null ? (dep > processed ? dep - processed : 0n) : null;
+  let pct: number | null = null;
+  if (dep != null && start != null && processed != null && dep > start) {
+    pct = Math.min(100, Math.max(0, Number(((processed - start) * 100n) / (dep - start))));
+  }
+  const etaMin = left != null ? Math.ceil((Number(left) * BASE_BLOCK_SECONDS) / 60) : null;
+  return (
+    <div className={s.finality}>
+      {pct != null ? (
+        <div className={s.bar} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+          <span style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+      <p className={s.timer}>
+        {left == null
+          ? "Waiting for Circle Gateway to reach your block…"
+          : left === 0n
+            ? "Circle reached your block — crediting the balance…"
+            : `Circle has processed Base Sepolia to block #${processed!.toLocaleString("en-US")} · your deposit is #${dep!.toLocaleString("en-US")} · ${left.toLocaleString("en-US")} blocks (~${etaMin} min) to go`}
+      </p>
+      <p className={s.timerSub}>
+        Elapsed {Math.floor(elapsed / 60)}m {String(elapsed % 60).padStart(2, "0")}s
+        {pending ? (
+          <>
+            {" · "}
+            <a className={s.link} href={`https://sepolia.basescan.org/tx/${pending.depositTx}`} target="_blank" rel="noopener noreferrer">
+              deposit tx ↗
+            </a>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
 }
