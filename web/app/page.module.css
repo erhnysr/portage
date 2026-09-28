@@ -885,12 +885,23 @@
   .navInner {
     height: 60px;
   }
-  /* keep only Launch app + status on the smallest screens; sections reachable by scroll */
-  .segments {
+  /* smallest screens: brand + Explorer + GitHub; landing sections stay reachable by scroll */
+  .segHideMobile,
+  .navDivider,
+  .statusPill {
     display: none;
   }
-  .navDivider {
-    display: none;
+  .navRight {
+    gap: 8px;
+  }
+  .segment {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .launch {
+    padding: 7px 11px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 
   .hero {

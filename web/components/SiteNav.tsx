@@ -36,13 +36,13 @@ export function SiteNav({ active }: { active: "home" | "explorer" }) {
             >
               Explorer
             </a>
-            <a href="/#proof" className={`${styles.segment} ${styles.segPurple}`}>
+            <a href="/#proof" className={`${styles.segment} ${styles.segPurple} ${styles.segHideMobile}`}>
               Proof
             </a>
-            <a href="/#architecture" className={`${styles.segment} ${styles.segBlue}`}>
+            <a href="/#architecture" className={`${styles.segment} ${styles.segBlue} ${styles.segHideMobile}`}>
               Architecture
             </a>
-            <a href="/#sdk" className={`${styles.segment} ${styles.segCyan}`}>
+            <a href="/#sdk" className={`${styles.segment} ${styles.segCyan} ${styles.segHideMobile}`}>
               SDK
             </a>
           </div>
