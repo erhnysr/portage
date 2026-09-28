@@ -15,7 +15,7 @@ export function Logo({ size }: { size: number }) {
 }
 
 /** Site-wide sticky nav. `active` highlights the current top-level page. */
-export function SiteNav({ active }: { active: "home" | "explorer" }) {
+export function SiteNav({ active }: { active: "home" | "explorer" | "demo" }) {
   return (
     <nav className={styles.nav}>
       <div className={styles.navInner}>
@@ -29,6 +29,13 @@ export function SiteNav({ active }: { active: "home" | "explorer" }) {
 
         <div className={styles.navRight}>
           <div className={styles.segments}>
+            <a
+              href="/demo"
+              className={`${styles.segment} ${styles.segInk} ${active === "demo" ? styles.segActive : ""}`}
+              aria-current={active === "demo" ? "page" : undefined}
+            >
+              Try it
+            </a>
             <a
               href="/explorer"
               className={`${styles.segment} ${styles.segInk} ${active === "explorer" ? styles.segActive : ""}`}

@@ -16,8 +16,9 @@ import {
 } from "../../../lib/portage";
 import { formatGasUsdc, formatUtc, middle } from "../../../lib/format";
 
-// A confirmed shipment never changes — render on first request, then serve from cache.
-export const revalidate = 3600;
+// Rendered per request; the underlying explorer reads are cached (only on success) in
+// lib/shipmentDetail.ts, so a just-landed shipment is never pinned as "not found".
+export const dynamic = "force-dynamic";
 
 type Params = { tx: string };
 const TX_RE = /^0x[0-9a-fA-F]{64}$/;

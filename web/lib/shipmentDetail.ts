@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import {
   decodeEventLog,
   decodeFunctionData,
@@ -143,30 +145,40 @@ type BlockscoutLogs = {
   items: { address: { hash: string }; topics: (string | null)[]; data: Hex }[];
 };
 
-async function getJson<T>(path: string): Promise<{ status: number; body: T | null }> {
+class NotIndexed extends Error {}
+
+async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${ARC_EXPLORER_API}${path}`, {
     headers: { accept: "application/json" },
-    // A confirmed transaction never changes; cache long.
-    next: { revalidate: 3600 },
+    cache: "no-store", // caching happens one level up, and only for successful reads
   });
-  if (!res.ok) return { status: res.status, body: null };
-  return { status: res.status, body: (await res.json()) as T };
+  if (res.status === 404 || res.status === 422) throw new NotIndexed(path);
+  if (!res.ok) throw new Error(`explorer ${res.status} for ${path}`);
+  return (await res.json()) as T;
 }
 
-export async function getShipmentDetail(txHash: `0x${string}`): Promise<DetailResult> {
-  let tx: BlockscoutTx | null;
-  let logs: BlockscoutLogs | null;
-  try {
-    const [t, l] = await Promise.all([
+// A confirmed transaction never changes, so a successful read is cached for an hour. A miss
+// (not yet indexed, bad hash, explorer hiccup) THROWS, and unstable_cache never stores a throw —
+// so a shipment opened seconds after it lands is retried on the next request, not pinned as 404.
+const loadTx = unstable_cache(
+  async (txHash: string) => {
+    const [tx, logs] = await Promise.all([
       getJson<BlockscoutTx>(`/transactions/${txHash}`),
       getJson<BlockscoutLogs>(`/transactions/${txHash}/logs`),
     ]);
-    if (t.status === 404 || t.status === 422) return { ok: false, reason: "not-found" };
-    if (!t.body || !l.body) return { ok: false, reason: "unavailable" };
-    tx = t.body;
-    logs = l.body;
-  } catch {
-    return { ok: false, reason: "unavailable" };
+    return { tx, logs };
+  },
+  ["portage-shipment-v1"],
+  { revalidate: 3600 },
+);
+
+export async function getShipmentDetail(txHash: `0x${string}`): Promise<DetailResult> {
+  let tx: BlockscoutTx;
+  let logs: BlockscoutLogs;
+  try {
+    ({ tx, logs } = await loadTx(txHash.toLowerCase()));
+  } catch (err) {
+    return { ok: false, reason: err instanceof NotIndexed ? "not-found" : "unavailable" };
   }
 
   // Decode the calldata ourselves — we only trust bytes, not the indexer's interpretation.

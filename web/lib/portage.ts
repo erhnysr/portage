@@ -139,6 +139,7 @@ export function quarantineReasonLabel(reason: number): string {
 // reverse-map the ones we know; anything else falls back to a short hash.
 export const APP_NAMES: Record<string, string> = {
   "0xee1b38d84672bb4ae7bf6e6e779a54a05e94092183ce62aa3f5329094652e2b6": "coliseum",
+  "0xf6159c6d949df30a684c5cd6522acd71cefb39a9d4936796a441158f16624c79": "portage-demo",
 };
 
 export function appName(appId: string): string {
