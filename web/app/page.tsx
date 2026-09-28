@@ -117,11 +117,11 @@ export default async function Home() {
             wrapped tokens.
           </p>
           <div className={styles.heroCtas}>
-            <a href="#proof" className={styles.btnPrimary}>
-              View the proof →
+            <a href="/demo" className={styles.btnPrimary}>
+              Try it live →
             </a>
-            <a href="#architecture" className={styles.btnGhost}>
-              Read the architecture
+            <a href="/explorer" className={styles.btnGhost}>
+              Inspect real shipments
             </a>
           </div>
         </div>
