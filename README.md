@@ -8,6 +8,11 @@ USDC balance — rather than raw CCTP: a user's deposit becomes spendable Gatewa
 and Portage mints and credits it atomically on Arc. This is the v0.1 deployment on Arc
 Testnet.
 
+**Try it live (Arc Testnet):**
+- Demo — move testnet USDC from Base Sepolia into a Portage ledger with your own wallet: https://portage-landing.vercel.app/demo
+- Explorer — every shipment re-decoded from calldata and checked: https://portage-landing.vercel.app/explorer
+- 1-minute demo video: https://youtu.be/6rOcqHVPpmk
+
 ## How it works
 
 A payout clears in three stages:
