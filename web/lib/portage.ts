@@ -41,7 +41,8 @@ const ARC_TESTNET: PortageNetwork = {
   // Default Arc testnet RPC when ARC_RPC_URL is not set. Set a dedicated key via env to
   // override (STRONGLY recommended for prod — keyless endpoints rate-limit the scan).
   // Endpoint history for the two-anchor getLogs workload (archive history back to deploy):
-  //   - rpc.testnet.arc.network → CURRENT default. Serves full history and 10k-block
+  //   - rpc.testnet.arc.io → CURRENT default (the arc.io name of the deprecated
+  //     rpc.testnet.arc.network, same backend). Serves full history and 10k-block
   //     getLogs windows. Rate-limits under rapid fire (code -32005 / "Request exceeds
   //     defined limit"), so shipments.ts scans SEQUENTIALLY with backoff + per-window
   //     tolerance; it still completes keyless (slower), and returns the honest error
@@ -50,7 +51,7 @@ const ARC_TESTNET: PortageNetwork = {
   //     hundred blocks ("ranges over 10000 blocks are not supported on free plan"), so
   //     the 10k-window scan cannot run there anymore. Was the old default; regressed.
   //   - blockdaemon → DISQUALIFIED: pruned node (code 4444) for deploy-era blocks.
-  defaultRpcUrl: "https://rpc.testnet.arc.network",
+  defaultRpcUrl: "https://rpc.testnet.arc.io",
   // PortageRouter on Arc testnet. NOT redeployed since the original Deploy.s.sol run,
   // so its deploy block below is the correct floor for its event history.
   router: "0x9eacb164e5B9D3D24b1A87437668B2245169eD4B",

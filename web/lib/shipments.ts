@@ -48,7 +48,7 @@ export type ShipmentsResult =
 
 function client() {
   // ARC_RPC_URL (a dedicated key) overrides; otherwise fall back to the keyless default
-  // (rpc.testnet.arc.network) so the manifest still renders without any env config.
+  // (rpc.testnet.arc.io) so the manifest still renders without any env config.
   const rpcUrl = process.env.ARC_RPC_URL || DEFAULT_ARC_RPC_URL;
   // No `chain` needed for reads; transport carries the endpoint (with its key, if any).
   return createPublicClient({ transport: http(rpcUrl) });

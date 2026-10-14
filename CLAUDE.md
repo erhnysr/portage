@@ -35,7 +35,7 @@ forge test --summary
 |------|-------|
 | Chain ID | `5042002` (0x4cef52) |
 | CCTP / Gateway domain | `26` |
-| RPC | `https://rpc.testnet.arc.network/<KEY>` (public key rate-limits; get own key) |
+| RPC | `https://rpc.testnet.arc.io/<KEY>` (public key rate-limits; get own key) |
 | Explorer | `https://testnet.arcscan.app` (Blockscout; `/tx/<hash>`, `/address/<addr>`). NOTE: the old `explorer.arc.testnet.circle.com` no longer resolves (DNS). |
 | Native gas token | USDC (gas paid in USDC on Arc) |
 | USDC (native) | `0x3600000000000000000000000000000000000000` |
@@ -88,7 +88,7 @@ cast wallet import deployer --interactive   # paste the deployer private key, se
 
 Env:
 ```bash
-export ARC_RPC_URL="https://rpc.testnet.arc.network/<KEY>"
+export ARC_RPC_URL="https://rpc.testnet.arc.io/<KEY>"
 # optional overrides (defaults are the Arc addresses above; governor defaults to the deployer):
 # export PORTAGE_GOVERNOR=0x...      # a multisig; if != deployer the script deploys but SKIPS wiring
 # export PORTAGE_GUARDIAN=0x...

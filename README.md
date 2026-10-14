@@ -101,7 +101,7 @@ Verifiable on the Arc Testnet explorer (Blockscout at `testnet.arcscan.app`):
 - Live consolidation mint (`executeMintWithMeta`, Gateway → Arc):
   [`0x2a3f0411…`](https://testnet.arcscan.app/tx/0x2a3f04110f614c0b65938560e236583de48523ecacd05cbf595b14c244e7d056)
 
-Network facts: RPC `https://rpc.testnet.arc.network/<KEY>`, Circle Gateway domain `26`,
+Network facts: RPC `https://rpc.testnet.arc.io/<KEY>`, Circle Gateway domain `26`,
 gas paid in USDC, native USDC at `0x3600000000000000000000000000000000000000`.
 
 ## Build and test
@@ -133,7 +133,7 @@ real interactive terminal for the keystore password prompt, so run it in your ow
 ```bash
 cast wallet import deployer --interactive   # paste the deployer private key, set a password
 
-export ARC_RPC_URL="https://rpc.testnet.arc.network/<KEY>"
+export ARC_RPC_URL="https://rpc.testnet.arc.io/<KEY>"
 # optional: PORTAGE_GOVERNOR (a multisig; if it differs from the deployer the script
 # deploys but skips wiring and prints the calls the governor must make), PORTAGE_GUARDIAN
 
