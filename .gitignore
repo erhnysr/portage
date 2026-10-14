@@ -21,3 +21,7 @@ node_modules/
 .DS_Store
 .vercel
 .env*
+
+# Mainnet pilot run state (attestation + meta, no secrets)
+sdk/scripts/.pilot-state.json
+sdk/scripts/.mock-gateway.mjs

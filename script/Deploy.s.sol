@@ -27,6 +27,9 @@ import {PortageMintForwarder} from "../contracts/periphery/PortageMintForwarder.
 ///                               DIFFERENT from the deployer, the script deploys but SKIPS
 ///                               wiring (only the governor can wire) and prints the calls to make.
 ///        PORTAGE_GUARDIAN       default = unset (no guardian configured)
+///        PORTAGE_REGISTER_APP   optional app name; when wiring runs, registers
+///                               keccak256(name) with the deployer as app owner and payout
+///                               controller (pilot convenience; skipped for a multisig governor)
 ///
 ///      Arc mainnet (chainId 5042) guard: the run reverts before broadcasting unless
 ///      PORTAGE_GATEWAY_MINTER is the mainnet minter, PORTAGE_GOVERNOR is set (a multisig) and
@@ -60,7 +63,9 @@ contract Deploy is Script {
 
         vm.startBroadcast();
 
-        address deployer = msg.sender;
+        // The broadcasting account (`--account` / `--private-key`). Same as msg.sender in a real
+        // `forge script` run; read explicitly so tests exercise the same path.
+        (, address deployer,) = vm.readCallers();
         address governor = governorCfg == address(0) ? deployer : governorCfg;
 
         // 1-5: deploy in dependency order.
@@ -77,6 +82,11 @@ contract Deploy is Script {
             ledger.setDebitor(address(engine)); // PayoutEngine is the sole debitor
             router.setForwarder(address(forwarder)); // only the Forwarder may credit the Router
             if (guardian != address(0)) registry.setGuardian(guardian);
+            string memory appName = vm.envOr("PORTAGE_REGISTER_APP", string(""));
+            if (bytes(appName).length > 0) {
+                registry.registerApp(keccak256(bytes(appName)), deployer, deployer);
+                console2.log("Registered app:  ", appName);
+            }
             wired = true;
         }
 

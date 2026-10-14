@@ -73,17 +73,35 @@ contract DeployGuardTest is Test {
         fwd.resolve(makeAddr("router"), TESTNET_MINTER);
     }
 
-    /// End-to-end: the real `run()` on chainId 5042 with explicit env deploys with the mainnet
-    /// minter and leaves wiring to the multisig. The only test here that sets env vars.
+    /// End-to-end: the real `run()` on chainId 5042 with explicit env. With a multisig governor it
+    /// deploys with the mainnet minter and leaves wiring to the multisig; with the deployer as
+    /// governor (pilot) it wires, sets the guardian and registers the named app. The only test
+    /// here that sets env vars, so both scenarios run sequentially in one function.
     function test_mainnet_run_endToEnd() public {
         vm.etch(USDC, address(new MockUSDC()).code);
         vm.setEnv("PORTAGE_USDC", vm.toString(USDC));
         vm.setEnv("PORTAGE_GATEWAY_MINTER", vm.toString(MAINNET_MINTER));
-        vm.setEnv("PORTAGE_GOVERNOR", vm.toString(multisig));
         vm.setEnv("PORTAGE_GUARDIAN", vm.toString(guardian));
+        vm.setEnv("PORTAGE_REGISTER_APP", "portage-demo");
+
+        vm.setEnv("PORTAGE_GOVERNOR", vm.toString(multisig));
         Deploy.Deployment memory dep = deploy.run();
         assertEq(address(dep.forwarder.gatewayMinter()), MAINNET_MINTER);
         assertEq(dep.governor, multisig);
         assertFalse(dep.wired, "a multisig governor wires itself");
+        assertFalse(dep.registry.isRegistered(keccak256("portage-demo")), "no registration without wiring");
+
+        // Pilot: governor = the broadcasting account (Foundry's default sender in tests).
+        address deployer = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
+        vm.setEnv("PORTAGE_GOVERNOR", vm.toString(deployer));
+        dep = deploy.run();
+        assertTrue(dep.wired);
+        assertEq(dep.ledger.creditor(), address(dep.router));
+        assertEq(dep.ledger.debitor(), address(dep.engine));
+        assertEq(dep.router.forwarder(), address(dep.forwarder));
+        assertEq(dep.registry.guardian(), guardian);
+        assertTrue(dep.registry.isRegistered(keccak256("portage-demo")));
+        assertEq(dep.registry.payoutControllerOf(keccak256("portage-demo")), deployer);
+        assertEq(dep.registry.ownerOf(keccak256("portage-demo")), deployer);
     }
 }
