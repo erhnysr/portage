@@ -3,7 +3,8 @@ import type { Address } from "viem";
 /**
  * Network-keyed configuration. Every Arc/Gateway/Portage fact is resolved from one
  * `NetworkConfig` selected by name, so the SDK can target Arc Testnet today and Arc mainnet
- * once Circle publishes it — without any consumer hardcoding a testnet address.
+ * once the Portage contracts are deployed there — without any consumer hardcoding a testnet
+ * address.
  *
  * Prefer {getNetwork} + the returned `NetworkConfig` over the deprecated flat exports
  * (`ARC`, `GATEWAY`, `PORTAGE_ARC_TESTNET`, `SOURCE_CHAINS`), which remain only for 0.1.x
@@ -152,13 +153,48 @@ export const ARC_TESTNET: NetworkConfig = {
 };
 
 // ---------------------------------------------------------------------------
+// Arc Mainnet — Circle-published facts only (verified against docs.arc.io and
+// developers.circle.com, 2026-10-14). Portage itself is NOT deployed on mainnet yet, so
+// `NETWORKS.arcMainnet` stays PENDING; these constants are not wired into any `NetworkConfig`.
+// Re-verify every value against the official docs before using it with real funds.
+// ---------------------------------------------------------------------------
+
+/** Arc Mainnet chain facts (docs.arc.io: connect-to-arc, contract-addresses). */
+export const ARC_MAINNET_CHAIN: ArcNetwork = {
+  chainId: 5042,
+  domain: 26,
+  usdc: "0x3600000000000000000000000000000000000000",
+  explorerTx: "https://explorer.arc.io/tx/",
+  explorerAddress: "https://explorer.arc.io/address/",
+};
+
+/** Circle Gateway on mainnet (developers.circle.com: contract-addresses, gateway.yaml servers). */
+export const ARC_MAINNET_GATEWAY: GatewayNetwork = {
+  wallet: "0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE",
+  minter: "0x2222222d7164433c4C09B0b0D809a9b52C04C205",
+  api: "https://gateway-api.circle.com",
+};
+
+/** Primary public Arc Mainnet RPC (docs.arc.io). Use your own provider key for production. */
+export const ARC_MAINNET_RPC = "https://rpc.mainnet.arc.io";
+
+/** Mainnet consolidation source chains: Gateway domain + native USDC (developers.circle.com). */
+export const MAINNET_SOURCE_CHAINS = {
+  ethereum: { domain: 0, usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as Address },
+  avalanche: { domain: 1, usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" as Address },
+  arbitrum: { domain: 3, usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" as Address },
+  base: { domain: 6, usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address },
+} as const satisfies Record<string, SourceChainInfo>;
+
+// ---------------------------------------------------------------------------
 // The network registry + selector.
 // ---------------------------------------------------------------------------
 
 /**
- * All networks. `arcMainnet` is intentionally PENDING: Circle has not published Arc mainnet's
- * chainId, Gateway domain, RPC, explorer, or native USDC address. Do NOT guess these — fill the
- * entry in once the values are official, then flip it from PENDING to a `NetworkConfig`.
+ * All networks. `arcMainnet` is intentionally PENDING: Arc mainnet and Circle Gateway are live
+ * (see ARC_MAINNET_CHAIN / ARC_MAINNET_GATEWAY above), but the Portage contracts are not deployed
+ * there yet. Do NOT guess contract addresses — flip this to a `NetworkConfig` only after the
+ * mainnet deploy is verified on the explorer.
  */
 export const NETWORKS = {
   arcTestnet: ARC_TESTNET,
@@ -170,9 +206,8 @@ export function getNetwork(name: NetworkName = DEFAULT_NETWORK): NetworkConfig {
   const net = NETWORKS[name];
   if (net === PENDING) {
     throw new Error(
-      `Portage network "${name}" is not available yet — Circle has not published Arc mainnet's ` +
-        `chainId, Gateway domain, RPC, explorer, or native USDC address. ` +
-        `Populate NETWORKS.${name} in config.ts once they are official.`,
+      `Portage network "${name}" is not available yet — the Portage contracts are not deployed ` +
+        `there. Populate NETWORKS.${name} in config.ts once the deployment is verified.`,
     );
   }
   return net;

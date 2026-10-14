@@ -8,7 +8,7 @@ Two surfaces:
 
 Config is network-keyed: `getNetwork(name)` resolves all Arc/Gateway/Portage facts for a
 network, and both surfaces accept a `network?` option (defaults to `"arcTestnet"`). `"arcMainnet"`
-is reserved but PENDING until Circle publishes it — selecting it throws. The old flat exports
+is reserved but PENDING until the Portage contracts are deployed on Arc mainnet — selecting it throws. Circle-published mainnet facts (chain, Gateway, source-chain USDC) are exported as `ARC_MAINNET_CHAIN`, `ARC_MAINNET_GATEWAY` and `MAINNET_SOURCE_CHAINS` for reference. The old flat exports
 (`ARC`, `GATEWAY`, `PORTAGE_ARC_TESTNET`, `SOURCE_CHAINS`) remain as deprecated Arc Testnet aliases.
 
 ```bash

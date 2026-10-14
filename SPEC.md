@@ -308,6 +308,8 @@ Incidental: `LedgerInvariant.t.sol:24` already seeds `keccak256("coliseum")` as 
 
 Arc public mainnet launched today: permissionless contract deployment, USDC-denominated gas, permissioned validator set.
 
+**Update 2026-10-14:** Circle's docs now list Arc mainnet (chain 5042, domain 26) with Gateway Wallet `0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE` and Gateway Minter `0x2222222d7164433c4C09B0b0D809a9b52C04C205`. This was read from the docs only; it has not been verified on-chain (`eth_getCode`) or against the live Gateway API, which must happen before any mainnet deploy. The paragraph below is the original 2026-09 note and is kept for history.
+
 **Portage mainnet is gated on Circle Gateway availability on Arc mainnet, which is not yet confirmed.** Circle's Gateway documentation lists Arc under *testnet* (domain 26); Gateway's mainnet launch covered seven chains with Arc stated as "next". Until Gateway is live on Arc mainnet, the `PortageRouter` / `PortageMintForwarder` deposit path has no counterpart there.
 
 Consequences:

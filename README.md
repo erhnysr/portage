@@ -86,6 +86,9 @@ properties are enforced in the test suite as invariants (see below).
 All contracts are deployed on **Arc Testnet only** (chain ID `5042002`). Base Sepolia is
 used solely as a source chain for USDC origin, not as a deployment target.
 
+Portage is **experimental, unaudited and not deployed on Arc mainnet**. See
+[`docs/MAINNET_READINESS.md`](docs/MAINNET_READINESS.md) for the mainnet status and blockers.
+
 | Contract | Address |
 |----------|---------|
 | AppRegistry | `0xb803bF100F5CEb71dcC6Db20f8586A7A0901BB67` |

@@ -60,7 +60,7 @@ const ARC_TESTNET: PortageNetwork = {
   routerDeployBlock: 52667877n,
 };
 
-// Arc mainnet not yet published by Circle — chainId / RPC / explorer / Router all TBD.
+// Arc mainnet is live, but the Portage contracts are not deployed there yet — Router etc. TBD.
 export const NETWORKS: Record<NetworkName, PortageNetwork | Pending> = {
   arcTestnet: ARC_TESTNET,
   arcMainnet: PENDING,
@@ -78,8 +78,8 @@ export function getNetwork(name: NetworkName = NETWORK_NAME): PortageNetwork {
   const net = NETWORKS[name];
   if (net === PENDING) {
     throw new Error(
-      `Portage network "${name}" is not available yet — Circle has not published Arc mainnet's ` +
-        `chainId, RPC, explorer, or Router deployment. Populate NETWORKS.${name} in lib/portage.ts once official.`,
+      `Portage network "${name}" is not available yet — the Portage contracts are not deployed there. ` +
+        `Populate NETWORKS.${name} in lib/portage.ts once the deployment is verified.`,
     );
   }
   return net;
