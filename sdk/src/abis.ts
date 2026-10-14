@@ -10,6 +10,7 @@ export const portageErrorsAbi = [
   // PortageMintForwarder
   { type: "error", name: "RecipientNotRouter", inputs: [{ name: "recipient", type: "address" }] },
   { type: "error", name: "NothingMinted", inputs: [{ name: "specHash", type: "bytes32" }] },
+  { type: "error", name: "EmptyHookData", inputs: [{ name: "specHash", type: "bytes32" }] },
   {
     type: "error",
     name: "InvalidMetaSigner",
@@ -21,6 +22,14 @@ export const portageErrorsAbi = [
   // PortageRouter
   { type: "error", name: "NotForwarder", inputs: [{ name: "caller", type: "address" }] },
   { type: "error", name: "AlreadyProcessed", inputs: [{ name: "specHash", type: "bytes32" }] },
+  {
+    type: "error",
+    name: "ExceedsUnaccounted",
+    inputs: [
+      { name: "requested", type: "uint256" },
+      { name: "available", type: "uint256" },
+    ],
+  },
   // Ledger
   { type: "error", name: "NotCreditor", inputs: [{ name: "caller", type: "address" }] },
   { type: "error", name: "AppNotRegistered", inputs: [{ name: "appId", type: "bytes32" }] },

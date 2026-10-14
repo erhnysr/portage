@@ -112,8 +112,9 @@ contract Ledger is Ownable2Step, ReentrancyGuard {
 
     /// @notice Credit an app sub-account. Pulls `amount` USDC from the caller (the creditor,
     ///         which has just received the minted USDC) into this vault.
-    /// @dev CEI: the token pull happens before state is mutated, so a re-entrant callback
-    ///      would observe pre-credit state and cannot double-spend; `nonReentrant` adds belt.
+    /// @dev Interaction-first, not CEI: the token pull happens before state is mutated. This is
+    ///      safe because only the creditor can call, `nonReentrant` blocks re-entry, and a failed
+    ///      pull reverts the whole credit, so no balance is ever recorded without the tokens.
     /// @param appId       Target application (must be registered).
     /// @param account     Sub-account within the app (app-defined, e.g. an arena id).
     /// @param amount      Atomic USDC units.

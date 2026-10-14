@@ -125,7 +125,7 @@ export const QuarantinedEvent = parseAbiItem(
 export const ACTION_LABELS = ["Credit", "Entry fee", "Escrow fund", "Top-up"] as const;
 
 // QuarantineReason enum (PortageRouter) → display label.
-export const QUARANTINE_REASON_LABELS = ["Malformed hookData", "Unregistered app"] as const;
+export const QUARANTINE_REASON_LABELS = ["Malformed hookData", "Unregistered app", "Orphaned (adopted by governor)"] as const;
 
 export function actionLabel(action: number): string {
   return ACTION_LABELS[action] ?? `Action #${action}`;

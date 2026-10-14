@@ -20,7 +20,9 @@ import {PayoutMeta, PayoutMetaLib} from "../lib/PayoutMetaLib.sol";
 ///
 ///      "No funds at rest" holds for the happy path: a successful credit immediately pulls the
 ///      USDC into the Ledger, leaving the router's own attributable balance at zero. The ONLY
-///      funds the router holds are explicitly quarantined amounts awaiting governor resolution.
+///      funds the router holds are explicitly quarantined amounts awaiting governor resolution,
+///      plus any USDC that reached it outside the forwarder (an orphaned mint or a direct
+///      transfer), which the governor can bring under quarantine with {adoptOrphan}.
 contract PortageRouter is Ownable2Step {
     using SafeERC20 for IERC20;
     using PayoutMetaLib for bytes;
@@ -34,7 +36,8 @@ contract PortageRouter is Ownable2Step {
 
     enum QuarantineReason {
         MalformedHookData,
-        UnregisteredApp
+        UnregisteredApp,
+        Orphaned
     }
 
     /// @notice specHash => quarantined USDC amount (0 if none / already resolved).
@@ -60,6 +63,8 @@ contract PortageRouter is Ownable2Step {
     error AlreadyProcessed(bytes32 specHash);
     error NothingQuarantined(bytes32 specHash);
     error AppNotRegistered(bytes32 appId);
+    error ZeroAmount();
+    error ExceedsUnaccounted(uint256 requested, uint256 available);
 
     constructor(address governor_, address usdc_, address ledger_, address registry_) Ownable(governor_) {
         if (usdc_ == address(0) || ledger_ == address(0) || registry_ == address(0)) revert ZeroAddress();
@@ -110,6 +115,25 @@ contract PortageRouter is Ownable2Step {
 
         usdc.safeTransfer(to, amount);
         emit QuarantineWithdrawn(specHash, to, amount);
+    }
+
+    /// @notice Bring USDC that reached the router outside the forwarder under quarantine, so the
+    ///         existing {resolveQuarantineToApp} / {withdrawQuarantine} flows can credit or refund
+    ///         it. Covers a burn intent minted to the router with `destinationCaller` unset (anyone
+    ///         can then call the GatewayMinter directly) and plain USDC transfers. Governor only.
+    /// @dev Only the unaccounted balance (`balanceOf(this) - quarantinedTotal`) can be adopted,
+    ///      so existing quarantine entries are never touched. `specHash` is marked processed so the
+    ///      same id can never also be credited through {credit}.
+    /// @param specHash  Gateway spec hash of the orphaned mint (from the minter's AttestationUsed
+    ///                  event), or any unused id for a direct transfer.
+    function adoptOrphan(bytes32 specHash, uint256 amount) external onlyOwner {
+        if (amount == 0) revert ZeroAmount();
+        if (processed[specHash] || quarantined[specHash] != 0) revert AlreadyProcessed(specHash);
+        uint256 unaccounted = usdc.balanceOf(address(this)) - quarantinedTotal;
+        if (amount > unaccounted) revert ExceedsUnaccounted(amount, unaccounted);
+
+        processed[specHash] = true;
+        _quarantine(specHash, amount, QuarantineReason.Orphaned);
     }
 
     // ---------------------------------------------------------------------

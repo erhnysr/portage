@@ -30,10 +30,13 @@ contract DeployForwarder is Script {
     address internal constant ARC_GATEWAY_MINTER = 0x0022222ABE238Cc2C7Bb1f21003F0a260052475B;
     address internal constant DEPLOYED_ROUTER = 0x9eacb164e5B9D3D24b1A87437668B2245169eD4B;
 
+    uint256 internal constant ARC_MAINNET_CHAIN_ID = 5042;
+    address internal constant ARC_MAINNET_GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
+
     function run() external returns (PortageMintForwarder forwarder) {
         address usdc = vm.envOr("PORTAGE_USDC", ARC_USDC);
         address gatewayMinter = vm.envOr("PORTAGE_GATEWAY_MINTER", ARC_GATEWAY_MINTER);
-        address router = vm.envOr("PORTAGE_ROUTER", DEPLOYED_ROUTER);
+        address router = _resolveRouter(vm.envOr("PORTAGE_ROUTER", address(0)), gatewayMinter);
 
         vm.startBroadcast();
 
@@ -52,5 +55,18 @@ contract DeployForwarder is Script {
         console2.log("Router.setForwarder ->  ", address(forwarder));
         console2.log("Update SDK config PORTAGE_ARC_TESTNET.mintForwarder + CLAUDE.md with this address.");
         console2.log("==================================================");
+    }
+
+    /// @dev The defaults are the Arc Testnet deployment; on Arc mainnet never fall back to them.
+    function _resolveRouter(address routerCfg, address gatewayMinter) internal view returns (address) {
+        if (block.chainid == ARC_MAINNET_CHAIN_ID) {
+            require(routerCfg != address(0), "DeployForwarder: mainnet requires PORTAGE_ROUTER");
+            require(
+                gatewayMinter == ARC_MAINNET_GATEWAY_MINTER,
+                "DeployForwarder: mainnet requires the mainnet GatewayMinter"
+            );
+            return routerCfg;
+        }
+        return routerCfg == address(0) ? DEPLOYED_ROUTER : routerCfg;
     }
 }

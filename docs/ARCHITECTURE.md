@@ -367,7 +367,7 @@ All app-scoped maps are keyed by `appId` first — there is no global mutable ba
 | T1 | **Replay / double-credit** of an attestation (resubmit mint) | Two independent guards: (a) `gatewayMint` marks the `specHash` used and reverts a resubmit (Mints.sol:335) *before* control ever reaches `credit`; (b) the Ledger records each `transferId` in `creditProcessed` and rejects a second credit for the same spec. Credit therefore happens at most once even if the mint path were somehow re-entered |
 | T2 | **Inflated credit** via forged/oversized hookData amount | Credit uses the `value` from the just-minted signed spec (= Router balance delta), never a relayer-supplied number |
 | T3 | **hookData tampering** in flight | hookData is inside the Circle-signed `TransferSpec` and is folded into `specHash` (TransferSpecLib.sol:481); any edit invalidates the attestation signature and reverts `gatewayMint` |
-| T4 | **Orphaned mint / front-run** (someone calls `gatewayMint` directly, USDC lands on Router uncredited) | Burn intent sets `destinationCaller = PortageMintForwarder`; Circle's minter enforces `destinationCaller == msg.sender` (Mints.sol:296), so only the forwarder can mint — and it credits atomically. Degraded `settle` path stays idempotent on `specHash` |
+| T4 | **Orphaned mint / front-run** (someone calls `gatewayMint` directly, USDC lands on Router uncredited) | Burn intent sets `destinationCaller = PortageMintForwarder`; Circle's minter enforces `destinationCaller == msg.sender` (Mints.sol:296), so only the forwarder can mint — and it credits atomically. If an intent is built without `destinationCaller` (or USDC is sent to the Router directly), the governor can move exactly the unaccounted balance into quarantine with `adoptOrphan(specHash, amount)` and then refund or credit it |
 | T5 | **Cross-app fund drain** | Ledger namespacing by `appId` + `custodyTotal == Σ appTotal` invariant revert |
 | T6 | **Unauthorized payout** | `onlyPayoutController(appId)`; controller bound in AppRegistry; per-app, not global |
 | T7 | **Payout replay / double-pay** | `settled[appId][referenceId]` one-shot |
@@ -379,6 +379,7 @@ All app-scoped maps are keyed by `appId` first — there is no global mutable ba
 | T13 | **Governance key abuse** | Core is immutable (no fund-moving admin); governor is expected to be a multisig (on Arc Testnet it is still the deployer EOA — mainnet blocker, see `docs/MAINNET_READINESS.md`); guardian can only pause, not withdraw |
 | T14 | **Rounding / fee mismatch** | Gateway `maxFee` is deducted from transfer; credited = minted delta, so fee never over-credits app |
 | T15 | **DoS via unregistered appId spam** | unmatched deposits go to per-app quarantine, bounded; no unbounded loops in hot path |
+| T16 | **Front-running `executeMintWithMeta` with `executeMint`** (the forwarder is permissionless; a v0.1 intent has empty hookData, which would decode as malformed and divert the deposit into quarantine) | `executeMint` reverts `EmptyHookData` on empty hookData, so a v0.1 attestation can only be executed through the depositor-signed meta path (`test/hardening/HardeningEmptyHookData.t.sol`) |
 
 ### Trust assumptions (explicit)
 
@@ -397,7 +398,7 @@ tests (256 runs × 128 depth). The test function enforcing each one is named in 
 3. `appTotal[app] == Σ_account balances[app][account]` (`invariant_appTotalEqualsSumOfAccounts`, `invariant_perAccountMatchesGhost`).
 4. No state transition moves value from `balances[appA]` to `balances[appB]`.
 5. Conservation across the periphery: `custodyTotal + quarantinedTotal == Σ minted` — every minted USDC unit is either credited to an app or held in quarantine, never lost or double-counted (`invariant_conservation`).
-6. Router holds no attributable funds at rest: its USDC balance equals `quarantinedTotal` (`invariant_custodyAndRouterBalances`).
+6. Router holds no attributable funds at rest: its USDC balance equals `quarantinedTotal` (`invariant_custodyAndRouterBalances`). USDC that arrives outside the forwarder (T4) breaks this until the governor calls `adoptOrphan`.
 7. Lifetime counters reconcile: per-app `totalCredited` / `totalPaid` stay consistent with the balances they derive from (`invariant_lifetimeCountersReconcile`).
 8. Payments reconcile: the total debited from the Ledger equals the total released to payout recipients (`invariant_paymentsReconcile`).
 

@@ -27,10 +27,18 @@ import {PortageMintForwarder} from "../contracts/periphery/PortageMintForwarder.
 ///                               DIFFERENT from the deployer, the script deploys but SKIPS
 ///                               wiring (only the governor can wire) and prints the calls to make.
 ///        PORTAGE_GUARDIAN       default = unset (no guardian configured)
+///
+///      Arc mainnet (chainId 5042) guard: the run reverts before broadcasting unless
+///      PORTAGE_GATEWAY_MINTER is the mainnet minter, PORTAGE_GOVERNOR is set (a multisig) and
+///      PORTAGE_GUARDIAN is set. The testnet defaults above are never used on mainnet.
 contract Deploy is Script {
     // Circle Arc Testnet (domain 26, chainId 5042002) — verified against docs.arc.io / gateway-api.
     address internal constant ARC_USDC = 0x3600000000000000000000000000000000000000;
     address internal constant ARC_GATEWAY_MINTER = 0x0022222ABE238Cc2C7Bb1f21003F0a260052475B;
+
+    // Arc mainnet — verified 2026-10-14 against gateway-api.circle.com/v1/info and eth_getCode.
+    uint256 internal constant ARC_MAINNET_CHAIN_ID = 5042;
+    address internal constant ARC_MAINNET_GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
 
     struct Deployment {
         AppRegistry registry;
@@ -47,6 +55,8 @@ contract Deploy is Script {
         address gatewayMinter = vm.envOr("PORTAGE_GATEWAY_MINTER", ARC_GATEWAY_MINTER);
         address governorCfg = vm.envOr("PORTAGE_GOVERNOR", address(0));
         address guardian = vm.envOr("PORTAGE_GUARDIAN", address(0));
+
+        _requireMainnetConfig(gatewayMinter, governorCfg, guardian);
 
         vm.startBroadcast();
 
@@ -76,6 +86,14 @@ contract Deploy is Script {
         _report(d, usdc, gatewayMinter, guardian);
     }
 
+    /// @dev On Arc mainnet, refuse to broadcast unless every network-specific value is explicit.
+    function _requireMainnetConfig(address gatewayMinter, address governorCfg, address guardian) internal view {
+        if (block.chainid != ARC_MAINNET_CHAIN_ID) return;
+        require(gatewayMinter == ARC_MAINNET_GATEWAY_MINTER, "Deploy: mainnet requires the mainnet GatewayMinter");
+        require(governorCfg != address(0), "Deploy: mainnet requires PORTAGE_GOVERNOR (multisig)");
+        require(guardian != address(0), "Deploy: mainnet requires PORTAGE_GUARDIAN");
+    }
+
     function _report(Deployment memory d, address usdc, address gatewayMinter, address guardian) internal pure {
         console2.log("=========== Portage v0.1 deployment ===========");
         console2.log("USDC:            ", usdc);
@@ -97,6 +115,7 @@ contract Deploy is Script {
             console2.log("  ledger.setCreditor(router)");
             console2.log("  ledger.setDebitor(engine)");
             console2.log("  router.setForwarder(forwarder)");
+            if (guardian != address(0)) console2.log("  registry.setGuardian(guardian)");
         }
         console2.log("Next: registry.registerApp(appId, appOwner, payoutController) per integration.");
         console2.log("===============================================");

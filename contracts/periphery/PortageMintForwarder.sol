@@ -50,6 +50,7 @@ contract PortageMintForwarder is ReentrancyGuard, EIP712 {
     error RecipientNotRouter(address recipient);
     error NothingMinted(bytes32 specHash);
     error InvalidMetaSigner(address recovered, address expectedDepositor);
+    error EmptyHookData(bytes32 specHash);
 
     constructor(address usdc_, address gatewayMinter_, address router_) EIP712("Portage", "1") {
         if (usdc_ == address(0) || gatewayMinter_ == address(0) || router_ == address(0)) revert ZeroAddress();
@@ -90,6 +91,10 @@ contract PortageMintForwarder is ReentrancyGuard, EIP712 {
 
     /// @notice FORWARD-COMPAT: execute a mint and credit using PayoutMeta carried in the
     ///         attestation's own hookData. Only useful when Gateway carries non-empty hookData.
+    /// @dev Rejects empty hookData. A v0.1 burn intent carries no hookData and its PayoutMeta is
+    ///      authorized separately via {executeMintWithMeta}; without this check anyone holding the
+    ///      attestation (e.g. from the mempool) could call this function first, the empty meta
+    ///      would decode as malformed, and the depositor's deposit would be forced into quarantine.
     function executeMint(bytes calldata attestationPayload, bytes calldata signature) external nonReentrant {
         attestationPayload.requireSingleAttestation();
 
@@ -98,6 +103,7 @@ contract PortageMintForwarder is ReentrancyGuard, EIP712 {
 
         bytes32 specHash = attestationPayload.specHash();
         bytes calldata hookData = attestationPayload.hookData();
+        if (hookData.length == 0) revert EmptyHookData(specHash);
 
         uint256 minted = _mintToRouter(attestationPayload, signature, specHash);
         router.credit(hookData, minted, specHash);
