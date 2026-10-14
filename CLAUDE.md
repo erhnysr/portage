@@ -18,12 +18,13 @@ Design doc: `docs/ARCHITECTURE.md` (kept in sync with the contracts — update b
 - `contracts/periphery/` — `PortageRouter`, `PortageMintForwarder`.
 - `contracts/lib/` — `AttestationDecoder`, `PayoutMetaLib`. `contracts/interfaces/` — `IGatewayMinter`.
 - `script/Deploy.s.sol` — deploy + wire.
-- `test/` — 78 tests (unit + fuzz invariants). Reference clone `arc-multichain-wallet/` is gitignored.
+- `test/` — 81 Portage core/periphery tests incl. 12 fuzz invariants (232 in the repo with the Arena and
+  conditional-escrow layers; counted 2026-10-14). Reference clone `arc-multichain-wallet/` is gitignored.
 
 Build & test:
 ```bash
 forge build
-forge test            # 78 tests, incl. invariants (custody+quarantine==minted, isolation, solvency)
+forge test            # 232 tests (81 Portage core/periphery), incl. invariants (custody+quarantine==minted, isolation, solvency)
 forge test --summary
 ```
 
@@ -68,7 +69,7 @@ PayoutEngine.ledger, Forwarder.router, Forwarder.gatewayMinter).
 > `router.setForwarder`. The original forwarder `0x07226E6163B3128b805774F73D26854a4de3661A`
 > (executeMint-only, pre-B1) is dead. Core + Router unchanged.
 
-Not yet done: no app registered (`registry.registerApp(...)`), no guardian set.
+Registered apps (checked on-chain 2026-10-14): `coliseum`, `portage-demo`. Not yet done: no guardian set.
 
 Re-verify wiring anytime:
 ```bash

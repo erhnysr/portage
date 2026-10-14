@@ -354,7 +354,7 @@ Status legend: **[built]** = implemented + tested in v0.1 Core; **[periphery]** 
 
 All app-scoped maps are keyed by `appId` first — there is no global mutable balance that any single app can touch.
 
-> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`), not in the Router as the original draft suggested. The Router carries no `processed` map — credit-once at the mint landing zone is provided by `gatewayMint`'s own `specHash` replay guard (a resubmit reverts before `credit` is reached), with the Ledger's `creditProcessed` as the independent second guard (see threat T1). The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router routes those (plus malformed-hookData deposits) to quarantine instead of ever calling `credit` — so the atomic mint still completes and funds are captured, never mis-credited or stranded.
+> **Sync note:** inbound credit idempotency is implemented in the **Ledger** (`creditProcessed`). The Router also keeps a `processed[specHash]` map (`PortageRouter.sol:48`, checked in `credit`) as defense-in-depth, and `gatewayMint`'s own `specHash` replay guard rejects a resubmit before `credit` is reached — three independent guards (see threat T1). The `quarantine` map is a Router/periphery responsibility (see §4) and is intentionally **not** in the Core `AppRegistry`; the Core `Ledger.credit` simply reverts (`AppNotRegistered`) for unknown apps, and the Router routes those (plus malformed-hookData deposits) to quarantine instead of ever calling `credit` — so the atomic mint still completes and funds are captured, never mis-credited or stranded.
 
 ---
 
@@ -376,7 +376,7 @@ All app-scoped maps are keyed by `appId` first — there is no global mutable ba
 | T10 | **Relayer compromise** | relayer is liveness-only: cannot change `destinationRecipient`/`hookData` (signed) nor fabricate credits (balance-delta). Worst case = delayed settlement |
 | T11 | **Malicious/compromised app owner** | blast radius limited to that app's own balance; global funds unaffected; guardian can pause the single app |
 | T12 | **USDC blacklist/freeze** (Circle can freeze addresses) | payout transfers handle failure without corrupting ledger (debit reverts atomically with failed transfer) |
-| T13 | **Governance key abuse** | Core is immutable (no fund-moving admin); registry governor is multisig; guardian can only pause, not withdraw |
+| T13 | **Governance key abuse** | Core is immutable (no fund-moving admin); governor is expected to be a multisig (on Arc Testnet it is still the deployer EOA — mainnet blocker, see `docs/MAINNET_READINESS.md`); guardian can only pause, not withdraw |
 | T14 | **Rounding / fee mismatch** | Gateway `maxFee` is deducted from transfer; credited = minted delta, so fee never over-credits app |
 | T15 | **DoS via unregistered appId spam** | unmatched deposits go to per-app quarantine, bounded; no unbounded loops in hot path |
 
