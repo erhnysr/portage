@@ -1,8 +1,11 @@
 # Portage — Mainnet readiness
 
-**Status (2026-10-14): NOT ready for mainnet.** Portage v0.1 runs on Arc Testnet only. The contracts
-are unaudited and no mainnet deployment exists. This document lists what is verified, what is not,
-and what must happen before real USDC is held.
+**Status (2026-10-15): capped pilot live on Arc mainnet; NOT ready for real volume.** The hardened
+contracts (branch `mainnet-pilot`) are deployed on Arc mainnet with the deployer EOA as governor and a
+guardian set; the first Base → Arc consolidation landed in tx
+[`0x7f8ef0a9…`](https://explorer.arc.io/tx/0x7f8ef0a9409fd7da0632dd9daf6b5977390ffff9575db3c5175729b511b7137b)
+(`Ledger.Credited`, 1 USDC). The contracts are unaudited. This document lists what is verified, what
+is not, and what must happen before more than pilot amounts are held. Addresses are in the README.
 
 ## 1. Arc mainnet facts (verified on-chain and against the live Gateway API, 2026-10-14)
 

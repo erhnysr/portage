@@ -81,13 +81,32 @@ the system is solvent by construction: an app can never be credited value that i
 backed by a held token, and no app's payout can draw down another app's funds. These
 properties are enforced in the test suite as invariants (see below).
 
+## Deployment — Arc mainnet (capped pilot)
+
+A pilot of the hardened contracts (branch `mainnet-pilot`) runs on **Arc mainnet** (chain ID
+`5042`), wired to Circle Gateway's mainnet minter. It is **experimental and unaudited**: the
+governor is the deployer EOA, a guardian can pause outflows per app, and transfers are kept
+to a few USDC. See [`docs/MAINNET_READINESS.md`](docs/MAINNET_READINESS.md) for what is still
+required before real volume.
+
+| Contract | Address |
+|----------|---------|
+| AppRegistry | [`0xC9f5e02BE3B4aB0c3Be643cbe09768C212E7F2ec`](https://explorer.arc.io/address/0xc9f5e02be3b4ab0c3be643cbe09768c212e7f2ec) |
+| Ledger | [`0xFeA0DA56D050ccd60c6AF1Dd8ee0A2dB26057572`](https://explorer.arc.io/address/0xfea0da56d050ccd60c6af1dd8ee0a2db26057572) |
+| PayoutEngine | [`0x2407D1Ed7AD33521055A113e0d20e8f815F664C0`](https://explorer.arc.io/address/0x2407d1ed7ad33521055a113e0d20e8f815f664c0) |
+| PortageRouter | [`0xd398907F08017A09DA5e001e95F73CB6496F2b47`](https://explorer.arc.io/address/0xd398907f08017a09da5e001e95f73cb6496f2b47) |
+| PortageMintForwarder | [`0x5209fA1407eB08f6bD6d774fC4D1DA90cf7F9FFE`](https://explorer.arc.io/address/0x5209fa1407eb08f6bd6d774fc4d1da90cf7f9ffe) |
+
+Registered app: `portage-demo`. First live consolidation (Base → Arc, `executeMintWithMeta`):
+[`0x7f8ef0a9…`](https://explorer.arc.io/tx/0x7f8ef0a9409fd7da0632dd9daf6b5977390ffff9575db3c5175729b511b7137b)
+(block 26021384: Gateway mint of 1 USDC to the router, `Ledger.Credited` at log 14).
+
+Reproduce: `node sdk/scripts/mainnet-pilot.mjs consolidate 1` (Foundry keystore, capped at 5 USDC).
+
 ## Deployment — Arc Testnet
 
-All contracts are deployed on **Arc Testnet only** (chain ID `5042002`). Base Sepolia is
+The original v0.1 contracts run on **Arc Testnet** (chain ID `5042002`). Base Sepolia is
 used solely as a source chain for USDC origin, not as a deployment target.
-
-Portage is **experimental, unaudited and not deployed on Arc mainnet**. See
-[`docs/MAINNET_READINESS.md`](docs/MAINNET_READINESS.md) for the mainnet status and blockers.
 
 | Contract | Address |
 |----------|---------|
