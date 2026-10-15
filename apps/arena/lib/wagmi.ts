@@ -9,7 +9,7 @@ export const wagmiConfig = getDefaultConfig({
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "coliseum-arc-testnet",
   chains: [arcTestnet],
   transports: {
-    [arcTestnet.id]: http("https://rpc.testnet.arc.network"),
+    [arcTestnet.id]: http("https://rpc.testnet.arc.io"),
   },
   ssr: true,
 });

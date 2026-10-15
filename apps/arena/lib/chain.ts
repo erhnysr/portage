@@ -10,8 +10,8 @@ export const arcTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.testnet.arc.network"],
-      webSocket: ["wss://rpc.testnet.arc.network"],
+      http: ["https://rpc.testnet.arc.io"],
+      webSocket: ["wss://rpc.testnet.arc.io"],
     },
   },
   blockExplorers: {
