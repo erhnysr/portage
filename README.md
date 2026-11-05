@@ -13,6 +13,11 @@ Testnet.
 - Explorer — every shipment re-decoded from calldata and checked: https://portage-landing.vercel.app/explorer
 - 1-minute demo video: https://youtu.be/6rOcqHVPpmk
 
+**Arc mainnet:** a capped, unaudited pilot is live (see [Deployment — Arc mainnet](#deployment--arc-mainnet-capped-pilot)).
+
+**Docs:** [Quickstart](docs/QUICKSTART.md) · [SDK](sdk/README.md) · [Architecture](docs/ARCHITECTURE.md) ·
+[Mainnet readiness](docs/MAINNET_READINESS.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+
 ## How it works
 
 A payout clears in three stages:
@@ -137,7 +142,9 @@ forge build
 forge test
 ```
 
-The suite has **81 tests**, all passing. That includes **12 invariant checks** across the
+The suite has **246 tests**, all passing (forge 1.5.1, 2026-11-05): **95** for the Portage
+core and periphery (including 14 mainnet-hardening tests), **85** for the conditional-escrow
+layer and **66** for the Arena. The core includes **12 invariant checks** across the
 Ledger, PayoutEngine, and periphery — covering conservation (custody plus quarantine
 equals minted), solvency, app isolation (`custodyTotal == Σ appTotal`,
 `appTotal == Σ per-account`), and ledger/payment reconciliation. Invariant runs are

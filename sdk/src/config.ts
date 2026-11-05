@@ -69,8 +69,8 @@ export interface ConditionsDeployment {
  * arena frontend (apps/arena) so it shares one source of truth with the SDK instead of hardcoding.
  */
 export interface ArenaDeployment {
-  arenaFactory: Address;
-  reputationNft: Address;
+  arenaFactory: Address | Pending;
+  reputationNft: Address | Pending;
 }
 
 /** A consolidation source chain: its Gateway domain and local USDC token. */
@@ -88,7 +88,8 @@ export interface NetworkConfig {
   conditions: ConditionsDeployment;
   /** Coliseum Arena deployment behind VerdictCondition (SPEC §7). */
   arena: ArenaDeployment;
-  sourceChains: Record<SourceChain, SourceChainInfo>;
+  /** Source chains supported on this network (testnet and mainnet use different chains). */
+  sourceChains: Partial<Record<SourceChain, SourceChainInfo>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,8 +105,11 @@ const ARC_TESTNET_SOURCE_CHAINS = {
   avalancheFuji: { domain: 1, usdc: "0x5425890298aed601595a70ab815c96711a31bc65" as Address },
 } as const;
 
-/** The consolidation source chains known to the SDK (keys are stable across networks). */
-export type SourceChain = keyof typeof ARC_TESTNET_SOURCE_CHAINS;
+/**
+ * The consolidation source chains known to the SDK: testnet keys (e.g. `baseSepolia`) and mainnet
+ * keys (e.g. `base`). Each network lists the ones it supports in `sourceChains`.
+ */
+export type SourceChain = keyof typeof ARC_TESTNET_SOURCE_CHAINS | keyof typeof MAINNET_SOURCE_CHAINS;
 
 export const ARC_TESTNET: NetworkConfig = {
   name: "arcTestnet",
@@ -153,10 +157,9 @@ export const ARC_TESTNET: NetworkConfig = {
 };
 
 // ---------------------------------------------------------------------------
-// Arc Mainnet — Circle-published facts only (verified against docs.arc.io and
-// developers.circle.com, 2026-10-14). Portage itself is NOT deployed on mainnet yet, so
-// `NETWORKS.arcMainnet` stays PENDING; these constants are not wired into any `NetworkConfig`.
-// Re-verify every value against the official docs before using it with real funds.
+// Arc Mainnet — Circle-published facts (verified against docs.arc.io and developers.circle.com,
+// 2026-10-14) plus the Portage capped-pilot deployment (2026-10-15, see README and
+// docs/MAINNET_READINESS.md). The pilot is unaudited and kept to a few USDC.
 // ---------------------------------------------------------------------------
 
 /** Arc Mainnet chain facts (docs.arc.io: connect-to-arc, contract-addresses). */
@@ -186,20 +189,47 @@ export const MAINNET_SOURCE_CHAINS = {
   base: { domain: 6, usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address },
 } as const satisfies Record<string, SourceChainInfo>;
 
+/**
+ * Arc mainnet — Portage capped pilot (deployed 2026-10-15 from the hardened contracts; addresses
+ * match broadcast/Deploy.s.sol/5042/run-latest.json and are verified on explorer.arc.io).
+ * EXPERIMENTAL AND UNAUDITED: the governor is the deployer EOA and transfers are kept to a few
+ * USDC. The conditional-settlement layer and the Arena are not deployed on mainnet (PENDING).
+ */
+export const ARC_MAINNET: NetworkConfig = {
+  name: "arcMainnet",
+  arc: ARC_MAINNET_CHAIN,
+  gateway: ARC_MAINNET_GATEWAY,
+  contracts: {
+    appRegistry: "0xC9f5e02BE3B4aB0c3Be643cbe09768C212E7F2ec",
+    ledger: "0xFeA0DA56D050ccd60c6AF1Dd8ee0A2dB26057572",
+    payoutEngine: "0x2407D1Ed7AD33521055A113e0d20e8f815F664C0",
+    router: "0xd398907F08017A09DA5e001e95F73CB6496F2b47",
+    mintForwarder: "0x5209fA1407eB08f6bD6d774fC4D1DA90cf7F9FFE",
+  },
+  conditions: {
+    conditionRegistry: PENDING,
+    conditionalEscrow: PENDING,
+    mutualReleaseCondition: PENDING,
+    timelockCondition: PENDING,
+    attestationCondition: PENDING,
+    verdictCondition: PENDING,
+  },
+  arena: { arenaFactory: PENDING, reputationNft: PENDING },
+  sourceChains: MAINNET_SOURCE_CHAINS,
+};
+
 // ---------------------------------------------------------------------------
 // The network registry + selector.
 // ---------------------------------------------------------------------------
 
 /**
- * All networks. `arcMainnet` is intentionally PENDING: Arc mainnet and Circle Gateway are live
- * (see ARC_MAINNET_CHAIN / ARC_MAINNET_GATEWAY above), but the Portage contracts are not deployed
- * there yet. Do NOT guess contract addresses — flip this to a `NetworkConfig` only after the
- * mainnet deploy is verified on the explorer.
+ * All networks. `arcMainnet` is the capped pilot (unaudited, a few USDC); see {ARC_MAINNET}.
+ * A network can be set back to PENDING to make {getNetwork} refuse it.
  */
-export const NETWORKS = {
+export const NETWORKS: Record<NetworkName, NetworkConfig | Pending> = {
   arcTestnet: ARC_TESTNET,
-  arcMainnet: PENDING,
-} as const satisfies Record<NetworkName, NetworkConfig | Pending>;
+  arcMainnet: ARC_MAINNET,
+};
 
 /** Resolve a network's config. Throws for networks whose values are not yet published. */
 export function getNetwork(name: NetworkName = DEFAULT_NETWORK): NetworkConfig {
@@ -242,12 +272,22 @@ export function isConditionsDeployed(network: NetworkConfig = getNetwork()): boo
   return Object.values(network.conditions).every((a) => a !== PENDING);
 }
 
+/** A source chain's Gateway domain + USDC on `network`; throws if the network does not support it. */
+export function sourceChainInfo(chain: SourceChain, network: NetworkConfig = getNetwork()): SourceChainInfo {
+  const info = network.sourceChains[chain];
+  if (!info) {
+    const supported = Object.keys(network.sourceChains).join(", ");
+    throw new Error(`Source chain "${chain}" is not supported on "${network.name}". Supported: ${supported}.`);
+  }
+  return info;
+}
+
 export function sourceChainDomain(chain: SourceChain, network: NetworkConfig = getNetwork()): number {
-  return network.sourceChains[chain].domain;
+  return sourceChainInfo(chain, network).domain;
 }
 
 export function sourceChainUsdc(chain: SourceChain, network: NetworkConfig = getNetwork()): Address {
-  return network.sourceChains[chain].usdc;
+  return sourceChainInfo(chain, network).usdc;
 }
 
 // ---------------------------------------------------------------------------

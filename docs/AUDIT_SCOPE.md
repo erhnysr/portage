@@ -38,7 +38,7 @@ settlement layer), `web/`, `sdk/`.
   (finding B). Fixes for both are on branch `hardening/mainnet-prep`; review that branch, not `main`.
 - Meta signatures are ECDSA only (no ERC-1271 smart-wallet depositors).
 - Tests: 81 Portage core/periphery tests including 12 fuzz invariants, all passing on 2026-10-14
-  (232 in the whole repo; 246 on the hardening branch).
+  (232 in the whole repo then; 246 since the hardening branch was merged, re-run 2026-11-05).
 - Gateway and Arc mainnet behavior has not been exercised by Portage; only Arc Testnet.
 
 ## Build

@@ -246,6 +246,23 @@
   flex-wrap: wrap;
   gap: 14px;
 }
+.pilotLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 0;
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+.pilotLine a {
+  color: var(--blue);
+  font-weight: 600;
+}
+.pilotLine a:hover {
+  color: var(--navy);
+}
 .btnPrimary {
   display: inline-flex;
   align-items: center;
@@ -828,8 +845,10 @@
 }
 .footerBottom {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 16px 24px;
   padding-top: 28px;
   border-top: 1px solid var(--border);
 }
@@ -839,6 +858,20 @@
   font-size: 15px;
   letter-spacing: -0.01em;
   color: var(--ink);
+}
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-family: var(--ff-mono);
+  font-size: 13px;
+}
+.footerLinks a {
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+.footerLinks a:hover {
+  color: var(--blue);
 }
 .builtOn {
   font-family: var(--ff-mono);

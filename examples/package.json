@@ -1,0 +1,19 @@
+{
+  "name": "portage-examples",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "consolidate": "tsx consolidate.ts",
+    "payout": "tsx payout.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@erhnysr/portage-sdk": "^0.2.0",
+    "viem": "^2.55.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

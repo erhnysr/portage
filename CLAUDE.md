@@ -18,13 +18,13 @@ Design doc: `docs/ARCHITECTURE.md` (kept in sync with the contracts — update b
 - `contracts/periphery/` — `PortageRouter`, `PortageMintForwarder`.
 - `contracts/lib/` — `AttestationDecoder`, `PayoutMetaLib`. `contracts/interfaces/` — `IGatewayMinter`.
 - `script/Deploy.s.sol` — deploy + wire.
-- `test/` — 81 Portage core/periphery tests incl. 12 fuzz invariants (232 in the repo with the Arena and
-  conditional-escrow layers; counted 2026-10-14). Reference clone `arc-multichain-wallet/` is gitignored.
+- `test/` — 95 Portage core/periphery tests incl. 12 fuzz invariants and 14 hardening tests (246 in the
+  repo with the Arena and conditional-escrow layers; counted 2026-11-05). Reference clone `arc-multichain-wallet/` is gitignored.
 
 Build & test:
 ```bash
 forge build
-forge test            # 232 tests (81 Portage core/periphery), incl. invariants (custody+quarantine==minted, isolation, solvency)
+forge test            # 246 tests (95 Portage core/periphery), incl. invariants (custody+quarantine==minted, isolation, solvency)
 forge test --summary
 ```
 

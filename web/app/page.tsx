@@ -8,7 +8,10 @@ import { getShipments } from "../lib/shipments";
 // between revalidations every visitor is served cached HTML.
 export const revalidate = 60;
 
-const SDK_URL = "https://www.npmjs.com/package/@erhnysr/portage-sdk";
+const SDK_URL = "https://github.com/erhnysr/portage/tree/main/sdk#readme";
+const REPO_URL = "https://github.com/erhnysr/portage";
+// First live Base -> Arc consolidation on Arc mainnet (capped pilot, 2026-10-15; see README).
+const MAINNET_PILOT_TX = "https://explorer.arc.io/tx/0x7f8ef0a9409fd7da0632dd9daf6b5977390ffff9575db3c5175729b511b7137b";
 const ROUTER_ON_ARCSCAN = `${ARC_EXPLORER_ADDRESS}${ROUTER_ADDRESS}`;
 
 /* ---------- blurred brand blob for section backgrounds (z-index:0; content sits at z-index:1) ---------- */
@@ -124,6 +127,14 @@ export default async function Home() {
               Inspect real shipments
             </a>
           </div>
+          <p className={styles.pilotLine}>
+            <span className={styles.badgeDot} aria-hidden="true" />
+            Live on Arc mainnet as a capped pilot ·{" "}
+            <a href={MAINNET_PILOT_TX} target="_blank" rel="noopener noreferrer">
+              first Base → Arc consolidation ↗
+            </a>{" "}
+            · Free during the pilot
+          </p>
         </div>
       </header>
 
@@ -143,7 +154,7 @@ export default async function Home() {
         </div>
         <div className={styles.docketCell}>
           <span className={styles.docketKey}>Chains</span>
-          <span className={styles.docketVal}>Base Sepolia → Arc</span>
+          <span className={styles.docketVal}>Base → Arc · mainnet pilot + testnet</span>
         </div>
       </section>
 
@@ -163,7 +174,7 @@ export default async function Home() {
         </div>
         <div className={styles.trustItem}>
           <TrustIcon kind="check" />
-          <span>Deployed and verified on Arc Testnet</span>
+          <span>Verified on Arc mainnet (capped pilot) and Arc Testnet</span>
         </div>
       </section>
 
@@ -386,7 +397,7 @@ export default async function Home() {
         <div className={styles.metrics}>
           <div className={`${styles.metric} ${styles.metricPurple}`}>
             <div className={styles.metricLabel}>Tests passing</div>
-            <div className={styles.metricNum}>232</div>
+            <div className={styles.metricNum}>246</div>
           </div>
           <div className={`${styles.metric} ${styles.metricBlue}`}>
             <div className={styles.metricLabel}>Invariants enforced</div>
@@ -405,12 +416,19 @@ export default async function Home() {
             <Logo size={20} />
             <span className={styles.wordmarkSm}>Portage</span>
           </a>
+          <nav className={styles.footerLinks} aria-label="Project">
+            <a href={SDK_URL} target="_blank" rel="noopener noreferrer">Docs</a>
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href={`${REPO_URL}/blob/main/SECURITY.md`} target="_blank" rel="noopener noreferrer">Security</a>
+            <a href={`${REPO_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer">MIT License</a>
+          </nav>
           <span className={styles.builtOn}>Built on Arc</span>
         </div>
 
         <p className={styles.legal}>
           Arc™ is a trademark of Circle Internet Group, Inc. Portage is an independent project and
-          is not affiliated with or endorsed by Circle. © 2026 Portage.
+          is not affiliated with or endorsed by Circle. The mainnet deployment is an unaudited,
+          capped pilot: keep amounts small. © 2026 Portage.
         </p>
       </footer>
     </div>

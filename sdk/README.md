@@ -8,7 +8,9 @@ Two surfaces:
 
 Config is network-keyed: `getNetwork(name)` resolves all Arc/Gateway/Portage facts for a
 network, and both surfaces accept a `network?` option (defaults to `"arcTestnet"`). `"arcMainnet"`
-is reserved but PENDING until the Portage contracts are deployed on Arc mainnet — selecting it throws. Circle-published mainnet facts (chain, Gateway, source-chain USDC) are exported as `ARC_MAINNET_CHAIN`, `ARC_MAINNET_GATEWAY` and `MAINNET_SOURCE_CHAINS` for reference. The old flat exports
+selects the **capped mainnet pilot** (unaudited, kept to a few USDC; source chains `base`,
+`ethereum`, `arbitrum`, `avalanche`). The conditional-settlement layer and the Arena are not on
+mainnet yet. Unsupported source chains throw a clear error. The old flat exports
 (`ARC`, `GATEWAY`, `PORTAGE_ARC_TESTNET`, `SOURCE_CHAINS`) remain as deprecated Arc Testnet aliases.
 
 ```bash
@@ -18,16 +20,24 @@ npm install @erhnysr/portage-sdk viem
 ## Client: consolidate USDC from Base Sepolia into an app's balance on Arc
 
 ```ts
-import { createPublicClient, createWalletClient, custom, http } from "viem";
-import { arcTestnet, baseSepolia } from "./chains"; // your viem chain defs
-import { PortageClient, PayoutAction, appIdFromName, accountIdFromName } from "@erhnysr/portage-sdk";
+import { createPublicClient, createWalletClient, custom, http, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { arcTestnet, baseSepolia } from "viem/chains";
+import {
+  PortageClient,
+  PayoutAction,
+  appIdFromName,
+  accountIdFromName,
+  addressToBytes32,
+} from "@erhnysr/portage-sdk";
 
 const arc = createPublicClient({ chain: arcTestnet, transport: http() });
-const portage = new PortageClient({ arcPublicClient: arc });
+const portage = new PortageClient({ arcPublicClient: arc }); // network defaults to "arcTestnet"
 
 // user's wallet on the source chain (Base Sepolia)
 const wallet = createWalletClient({ chain: baseSepolia, transport: custom(window.ethereum) });
 const [depositor] = await wallet.getAddresses();
+const basePublic = createPublicClient({ chain: baseSepolia, transport: http() });
 
 // the PayoutMeta describing how to credit this deposit (delivered out of band in v0.1)
 const meta = {
@@ -38,22 +48,30 @@ const meta = {
   payer: addressToBytes32(depositor),
 };
 
-// 1. deposit into the Gateway unified balance
-await portage.deposit(wallet, { chain: "baseSepolia", amount: 5_000000n }); // 5 USDC (6 decimals)
+// 1. build the consolidation intent first: it fixes maxFee, the most the Gateway transfer may
+//    charge (default 10% of the amount, capped at 2.01 USDC). Deposit must cover amount + maxFee.
+const amount = 5_000000n; // 5 USDC (6 decimals)
+const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount, depositor });
+const needed = amount + intent.message.maxFee;
 
-// 2. build the consolidation intent (empty hookData) and sign both the burn intent AND the
-//    PayoutMeta binding (bound to the transfer's specHash — this is what keeps it non-custodial)
-const intent = portage.buildConsolidationIntent({ sourceChain: "baseSepolia", amount: 5_000000n, depositor });
+// 2. deposit into the Gateway unified balance, then wait for Circle to finalize it
+await portage.deposit(wallet, { chain: "baseSepolia", amount: needed, sourcePublicClient: basePublic });
+await portage.waitForGatewayBalance(depositor, "baseSepolia", needed);
+
+// 3. sign the burn intent AND the PayoutMeta binding (bound to the transfer's specHash;
+//    this is what keeps it non-custodial)
 const burnSig = await wallet.signTypedData({ account: depositor, ...intent.typedData });
+const metaSig = await wallet.signTypedData({
+  account: depositor,
+  ...portage.buildMetaBinding(portage.specHash(intent), meta),
+});
 
-const specHash = portage.specHash(intent);
-const metaSig = await wallet.signTypedData({ account: depositor, ...portage.buildMetaBinding(specHash, meta) });
-
-// 3. submit the burn intent → attestation
+// 4. submit the burn intent → attestation
 const { attestation, signature: attSig } = await portage.submitConsolidation(intent, burnSig);
 
-// 4. execute the atomic mint + credit on Arc, passing the meta + its signature (relayer or self;
-//    the forwarder verifies the meta was signed by the depositor before crediting)
+// 5. execute the atomic mint + credit on Arc (any relayer; the forwarder verifies the meta
+//    was signed by the depositor before crediting). Arc uses USDC for gas.
+const relayerAccount = privateKeyToAccount(process.env.RELAYER_KEY as Hex);
 const arcWallet = createWalletClient({ chain: arcTestnet, transport: http(), account: relayerAccount });
 await portage.executeMintWithMeta(arcWallet, { attestation, signature: attSig, meta, metaSig });
 

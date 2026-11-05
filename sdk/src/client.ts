@@ -5,11 +5,14 @@ import {
   type Address,
   type Hex,
   type Hash,
+  type Chain,
   type PublicClient,
+  type Transport,
   type WalletClient,
 } from "viem";
 import {
   getNetwork,
+  sourceChainInfo,
   sourceChainUsdc,
   type NetworkConfig,
   type NetworkName,
@@ -119,9 +122,11 @@ export class PortageClient {
    * eventually consistent: a receipt can confirm on one node while the next gas-estimation read
    * hits a lagging node that still reports the old allowance — which would revert the deposit.
    */
-  async deposit(
+  // Generic over the chain so OP-stack clients (Base, Optimism) typecheck: their formatters make a
+  // chain-specific client unassignable to a plain `PublicClient`.
+  async deposit<TSourceChain extends Chain | undefined = Chain | undefined>(
     walletClient: WalletClient,
-    params: { chain: SourceChain; amount: bigint; sourcePublicClient?: PublicClient },
+    params: { chain: SourceChain; amount: bigint; sourcePublicClient?: PublicClient<Transport, TSourceChain> },
   ): Promise<{ approveTx: Hash; depositTx: Hash }> {
     const owner = requireAccount(walletClient).address;
     const approveTx = await this.approveGateway(walletClient, params);
@@ -143,8 +148,8 @@ export class PortageClient {
   }
 
   /** Polls the ERC20 allowance until it is at least `min` (handles eventually-consistent RPCs). */
-  async waitForAllowance(
-    publicClient: PublicClient,
+  async waitForAllowance<TChain extends Chain | undefined = Chain | undefined>(
+    publicClient: PublicClient<Transport, TChain>,
     token: Address,
     owner: Address,
     spender: Address,
@@ -282,7 +287,7 @@ export class PortageClient {
   /** Gateway unified USDC balance for a depositor across source-chain domains. */
   async getUnifiedBalance(depositor: Address, opts?: { sourceChains?: SourceChain[] }): Promise<GatewayBalances> {
     const chains = opts?.sourceChains ?? (Object.keys(this.network.sourceChains) as SourceChain[]);
-    const sources = chains.map((c) => ({ domain: this.network.sourceChains[c].domain, depositor }));
+    const sources = chains.map((c) => ({ domain: sourceChainInfo(c, this.network).domain, depositor }));
     return this.gatewayApi.getBalances("USDC", sources);
   }
 
@@ -292,7 +297,7 @@ export class PortageClient {
    * Note: a transfer needs headroom for the fee — you cannot transfer the entire available amount.
    */
   async getGatewayAvailable(depositor: Address, chain: SourceChain): Promise<bigint> {
-    const domain = this.network.sourceChains[chain].domain;
+    const domain = sourceChainInfo(chain, this.network).domain;
     const res = await this.gatewayApi.getBalances("USDC", [{ domain, depositor }]);
     const entry = res.balances.find((b) => b.domain === domain);
     return entry ? parseUnits(entry.balance, 6) : 0n;
